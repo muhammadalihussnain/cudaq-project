@@ -1,0 +1,15 @@
+# C++ build output
+sample
+*.o
+*.qke
+
+# CUDA-Q compiler temporary files
+*.ll.tmp
+
+# Python virtual environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+
+# Jupyter temporary checkpoints
+.ipynb_checkpoints/
