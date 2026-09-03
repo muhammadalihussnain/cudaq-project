@@ -13,3 +13,6 @@ __pycache__/
 
 # Jupyter temporary checkpoints
 .ipynb_checkpoints/
+
+# Local SSH credentials
+myfile.txt
