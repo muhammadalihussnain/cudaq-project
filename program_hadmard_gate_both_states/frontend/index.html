@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101417">
+  <title>CUDA-Q Circuit Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand-lockup"><span class="brand-mark">Q</span><div><p class="eyebrow">CUDA-Q WORKBENCH</p><h1>Circuit Lab</h1></div></div>
+      <div class="topbar-actions"><span class="status-dot"></span><span id="connectionState">Local editor</span><button class="icon-button" id="clearButton" title="Clear circuit" aria-label="Clear circuit">&#8634;</button></div>
+    </header>
+
+    <section class="workspace">
+      <aside class="sidebar">
+        <div class="panel-heading"><div><p class="eyebrow">01 / CONFIGURE</p><h2>Register</h2></div><span class="step-number">A</span></div>
+        <label class="field-label" for="qubitCount">Qubits <span>1 - 29</span></label>
+        <div class="number-control"><button data-step="-1" aria-label="Decrease qubits">-</button><input id="qubitCount" type="number" min="1" max="29" value="3"><button data-step="1" aria-label="Increase qubits">+</button></div>
+        <p class="field-hint">Memory limit for one GPU: 29 qubits</p>
+        <label class="field-label" for="shots">Shots</label>
+        <select id="shots"><option value="100">100</option><option value="500">500</option><option value="1000" selected>1,000</option><option value="10000">10,000</option></select>
+        <label class="field-label" for="backend">Execution target</label>
+        <div class="target-toggle"><button class="target-option active" data-backend="qpp-cpu"><span class="target-icon">CPU</span><strong>qpp-cpu</strong><small>Local simulator</small></button><button class="target-option" data-backend="nvidia"><span class="target-icon gpu">GPU</span><strong>nvidia</strong><small>CUDA-Q GPU</small></button></div>
+        <div class="sidebar-rule"></div>
+        <div class="panel-heading compact"><div><p class="eyebrow">02 / GATES</p><h2>Palette</h2></div><span class="gate-count" id="gateCount">0 gates</span></div>
+        <div class="gate-palette" id="gatePalette" aria-label="Quantum gate palette"></div>
+        <p class="drag-hint">Drag a gate onto a circuit slot, or click to place it in the first open column.</p>
+      </aside>
+
+      <section class="circuit-panel">
+        <div class="circuit-header"><div><p class="eyebrow">03 / OPERATIONS</p><h2>Quantum circuit</h2></div><div class="circuit-meta"><span id="registerMeta">3 qubits</span><span class="meta-divider">/</span><span id="depthMeta">0 depth</span></div></div>
+        <div class="state-strip"><span class="strip-label">INITIAL STATE</span><div id="stateControls" class="state-controls"></div><span class="state-help">Click a state to cycle: |0&gt; &rarr; |1&gt; &rarr; |+&gt; &rarr; |-&gt;</span></div>
+        <div class="circuit-scroll"><div class="circuit-board" id="circuitBoard"></div></div>
+        <div class="circuit-footer"><span><kbd>+</kbd> Add column</span><span><kbd>DEL</kbd> Remove selected gate</span><button class="run-button" id="runButton"><span class="run-symbol">&#9654;</span> Run circuit</button></div>
+      </section>
+
+      <aside class="results-panel">
+        <div class="panel-heading"><div><p class="eyebrow">04 / MEASURE</p><h2>Output</h2></div><span class="live-badge">READY</span></div>
+        <div id="resultEmpty" class="result-empty"><div class="empty-orbit">&#9671;</div><p>Run the circuit to<br>measure its state.</p></div>
+        <div id="resultView" class="result-view hidden"><div class="result-summary"><span id="resultTarget">qpp-cpu</span><strong id="resultShots">1,000 shots</strong></div><div id="bars" class="bars"></div><div class="result-note"><span class="status-dot"></span><span id="resultNote">Sampled by CUDA-Q</span></div></div>
+        <div class="result-bottom"><span>Most likely state</span><strong id="mostLikely">--</strong></div>
+      </aside>
+    </section>
+    <footer class="app-footer"><span>CUDA-Q CIRCUIT LAB</span><span>Kernel builder interface</span><span id="clock"></span></footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
