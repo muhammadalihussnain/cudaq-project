@@ -1,4 +1,5 @@
 #include <cudaq.h>
+#include <chrono>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -53,7 +54,12 @@ int main(int argc, char **argv) {
   const std::vector<int> initial_states{0};
   const std::vector<Gate> gates{{"H", 0}};
   auto kernel = build_kernel(1, initial_states, gates);
+  const auto started = std::chrono::steady_clock::now();
   const auto result = cudaq::sample(shots, kernel);
+  const auto finished = std::chrono::steady_clock::now();
+  const auto elapsed = std::chrono::duration<double, std::milli>(finished - started).count();
   std::cout << "backend=" << backend << '\n';
+  std::cout << "executed_by=CUDA-Q target " << backend << '\n';
+  std::cout << "elapsed_ms=" << elapsed << '\n';
   for (const auto &[bits, count] : result) std::cout << bits << ": " << count << '\n';
 }

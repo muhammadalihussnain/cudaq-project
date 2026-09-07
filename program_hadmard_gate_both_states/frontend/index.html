@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,43 +9,209 @@
 </head>
 <body>
   <main class="app-shell">
+
+    <!-- ── TOP BAR ──────────────────────────────────────────────────────── -->
     <header class="topbar">
-      <div class="brand-lockup"><span class="brand-mark">Q</span><div><p class="eyebrow">CUDA-Q WORKBENCH</p><h1>Circuit Lab</h1></div></div>
-      <div class="topbar-actions"><span class="status-dot"></span><span id="connectionState">Local editor</span><button class="icon-button" id="clearButton" title="Clear circuit" aria-label="Clear circuit">&#8634;</button></div>
+      <div class="brand-lockup">
+        <span class="brand-mark">Q</span>
+        <div><p class="eyebrow">CUDA-Q WORKBENCH</p><h1>Circuit Lab</h1></div>
+      </div>
+      <div class="topbar-actions">
+        <span class="status-dot"></span>
+        <span id="connectionState">Local editor</span>
+        <button class="icon-button" id="themeToggle"  title="Toggle light/dark mode" aria-label="Toggle theme">&#9788;</button>
+        <button class="icon-button" id="helpButton"   title="Keyboard shortcuts (F1)" aria-label="Help">?</button>
+        <button class="icon-button" id="undoButton"   title="Undo (Ctrl+Z)" aria-label="Undo" disabled>&#8617;</button>
+        <button class="icon-button" id="redoButton"   title="Redo (Ctrl+Y)" aria-label="Redo" disabled>&#8618;</button>
+        <button class="icon-button" id="clearButton"  title="Clear circuit (Ctrl+L)" aria-label="Clear">&#8634;</button>
+      </div>
     </header>
 
-    <section class="workspace">
-      <aside class="sidebar">
-        <div class="panel-heading"><div><p class="eyebrow">01 / CONFIGURE</p><h2>Register</h2></div><span class="step-number">A</span></div>
-        <label class="field-label" for="qubitCount">Qubits <span>1 - 29</span></label>
-        <div class="number-control"><button data-step="-1" aria-label="Decrease qubits">-</button><input id="qubitCount" type="number" min="1" max="29" value="3"><button data-step="1" aria-label="Increase qubits">+</button></div>
-        <p class="field-hint">Memory limit for one GPU: 29 qubits</p>
+    <!-- ── WORKSPACE ────────────────────────────────────────────────────── -->
+    <section class="workspace" id="workspace">
+
+      <!-- LEFT collapse handle -->
+      <button class="panel-tab panel-tab--left" id="sidebarToggle"
+              aria-label="Toggle sidebar" title="Collapse sidebar">&#8249;</button>
+
+      <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────── -->
+      <aside class="sidebar" id="sidebar">
+        <div class="panel-heading">
+          <div><p class="eyebrow">01 / CONFIGURE</p><h2>Register</h2></div>
+          <span class="step-number">A</span>
+        </div>
+
+        <label class="field-label" for="qubitCount">Qubits <span>1–29</span></label>
+        <div class="number-control">
+          <button data-step="-1" aria-label="Decrease qubits">-</button>
+          <input id="qubitCount" type="number" min="1" max="29" value="3">
+          <button data-step="1"  aria-label="Increase qubits">+</button>
+        </div>
+        <p class="field-hint">GPU memory limit: 29 qubits</p>
+
         <label class="field-label" for="shots">Shots</label>
-        <select id="shots"><option value="100">100</option><option value="500">500</option><option value="1000" selected>1,000</option><option value="10000">10,000</option></select>
-        <label class="field-label" for="backend">Execution target</label>
-        <div class="target-toggle"><button class="target-option active" data-backend="qpp-cpu"><span class="target-icon">CPU</span><strong>qpp-cpu</strong><small>Local simulator</small></button><button class="target-option" data-backend="nvidia"><span class="target-icon gpu">GPU</span><strong>nvidia</strong><small>CUDA-Q GPU</small></button></div>
+        <select id="shots">
+          <option value="100">100</option>
+          <option value="500">500</option>
+          <option value="1000" selected>1,000</option>
+          <option value="10000">10,000</option>
+        </select>
+
+        <label class="field-label">Execution target</label>
+        <div class="target-toggle">
+          <button class="target-option active" data-backend="qpp-cpu">
+            <span class="target-icon">CPU</span><strong>qpp-cpu</strong><small>Local simulator</small>
+          </button>
+          <button class="target-option" data-backend="nvidia">
+            <span class="target-icon gpu">GPU</span><strong>nvidia</strong><small>CUDA-Q GPU</small>
+          </button>
+        </div>
+        <button class="run-button compare-sidebar-btn" id="compareButton">&#9654;&#9654; Compare targets</button>
+
         <div class="sidebar-rule"></div>
-        <div class="panel-heading compact"><div><p class="eyebrow">02 / GATES</p><h2>Palette</h2></div><span class="gate-count" id="gateCount">0 gates</span></div>
-        <div class="gate-palette" id="gatePalette" aria-label="Quantum gate palette"></div>
-        <p class="drag-hint">Drag a gate onto a circuit slot, or click to place it in the first open column.</p>
+
+        <div class="panel-heading compact">
+          <div><p class="eyebrow">02 / GATES</p><h2>Palette</h2></div>
+          <span class="gate-count" id="gateCount">0 gates</span>
+        </div>
+
+        <!-- active-qubit hint shown above palette -->
+        <p class="active-qubit-hint" id="activeQubitHint">
+          Click a qubit row to select it, then click a gate to place it there.
+        </p>
+
+        <div class="gate-palette" id="gatePalette" aria-label="Gate palette"></div>
+        <p class="drag-hint">Or drag a gate directly onto any circuit slot.</p>
       </aside>
 
-      <section class="circuit-panel">
-        <div class="circuit-header"><div><p class="eyebrow">03 / OPERATIONS</p><h2>Quantum circuit</h2></div><div class="circuit-meta"><span id="registerMeta">3 qubits</span><span class="meta-divider">/</span><span id="depthMeta">0 depth</span></div></div>
-        <div class="state-strip"><span class="strip-label">INITIAL STATE</span><div id="stateControls" class="state-controls"></div><span class="state-help">Click a state to cycle: |0&gt; &rarr; |1&gt; &rarr; |+&gt; &rarr; |-&gt;</span></div>
-        <div class="circuit-scroll"><div class="circuit-board" id="circuitBoard"></div></div>
-        <div class="circuit-footer"><span><kbd>+</kbd> Add column</span><span><kbd>DEL</kbd> Remove selected gate</span><button class="run-button" id="runButton"><span class="run-symbol">&#9654;</span> Run circuit</button></div>
+      <!-- ── CIRCUIT PANEL ─────────────────────────────────────────────── -->
+      <section class="circuit-panel" id="circuitPanel">
+        <div class="circuit-header">
+          <div><p class="eyebrow">03 / OPERATIONS</p><h2>Quantum circuit</h2></div>
+          <div class="circuit-meta">
+            <span id="registerMeta">3 qubits</span>
+            <span class="meta-divider">/</span>
+            <span id="depthMeta">0 depth</span>
+          </div>
+        </div>
+
+        <div class="state-strip">
+          <span class="strip-label">INITIAL STATE</span>
+          <div id="stateControls" class="state-controls"></div>
+          <span class="state-help">Click a qubit label or state button to select it, then click a gate</span>
+        </div>
+
+        <div class="circuit-scroll">
+          <!-- SVG overlay for 2-qubit connector lines — sits above the board -->
+          <svg id="connectorSvg" class="connector-svg" aria-hidden="true"></svg>
+          <div class="circuit-board" id="circuitBoard"></div>
+        </div>
+
+        <div class="circuit-footer">
+          <span><kbd>Enter</kbd> Run</span>
+          <span><kbd>Ctrl+Z</kbd> Undo</span>
+          <span><kbd>Ctrl+D</kbd> Theme</span>
+          <span><kbd>F1</kbd> Help</span>
+          <button class="run-button" id="runButton"><span class="run-symbol">&#9654;</span> Run circuit</button>
+        </div>
       </section>
 
-      <aside class="results-panel">
-        <div class="panel-heading"><div><p class="eyebrow">04 / MEASURE</p><h2>Output</h2></div><span class="live-badge">READY</span></div>
-        <div id="resultEmpty" class="result-empty"><div class="empty-orbit">&#9671;</div><p>Run the circuit to<br>measure its state.</p></div>
-        <div id="resultView" class="result-view hidden"><div class="result-summary"><span id="resultTarget">qpp-cpu</span><strong id="resultShots">1,000 shots</strong></div><div id="bars" class="bars"></div><div class="result-note"><span class="status-dot"></span><span id="resultNote">Sampled by CUDA-Q</span></div></div>
-        <div class="result-bottom"><span>Most likely state</span><strong id="mostLikely">--</strong></div>
+      <!-- RIGHT collapse handle -->
+      <button class="panel-tab panel-tab--right" id="resultsPanelToggle"
+              aria-label="Toggle results" title="Collapse results">&#8250;</button>
+
+      <!-- ── RIGHT RESULTS PANEL ───────────────────────────────────────── -->
+      <aside class="results-panel" id="resultsPanel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">04 / MEASURE</p><h2>Output</h2></div>
+          <span class="live-badge" id="liveBadge">READY</span>
+        </div>
+
+        <div class="formula-heading">QUANTUM STATE</div>
+        <div id="stateFormula" class="state-formula-box"></div>
+
+        <div id="resultEmpty" class="result-empty">
+          <div class="empty-orbit">&#9671;</div>
+          <p>Run the circuit to<br>see measurement counts.</p>
+        </div>
+
+        <div id="resultView" class="result-view hidden">
+
+          <!-- GPU / backend confirmation banner -->
+          <div id="gpuConfirmBanner" class="gpu-confirm-banner hidden" role="status" aria-live="polite"></div>
+
+          <div class="result-summary">
+            <span id="resultTarget">qpp-cpu</span>
+            <strong id="resultShots">1,000 shots</strong>
+          </div>
+          <div class="timing-readout">
+            <span>Execution time</span>
+            <strong id="resultTime">-- ms</strong>
+          </div>
+          <div id="bars" class="bars"></div>
+          <div id="bitBreakdown" class="bit-breakdown"></div>
+          <div class="result-note">
+            <span class="status-dot"></span>
+            <span id="resultNote">Sampled by CUDA-Q</span>
+          </div>
+        </div>
+
+        <div id="compareView" class="compare-view hidden">
+          <div class="compare-heading">TARGET COMPARISON</div>
+          <div id="compareRows"></div>
+        </div>
+
+        <div class="result-bottom">
+          <span>Most likely state</span>
+          <strong id="mostLikely">--</strong>
+        </div>
       </aside>
-    </section>
-    <footer class="app-footer"><span>CUDA-Q CIRCUIT LAB</span><span>Kernel builder interface</span><span id="clock"></span></footer>
+
+    </section><!-- /workspace -->
+
+    <footer class="app-footer">
+      <span>CUDA-Q CIRCUIT LAB</span>
+      <span>Kernel builder interface</span>
+      <span id="clock"></span>
+    </footer>
   </main>
+
+  <!-- ── HELP MODAL ───────────────────────────────────────────────────────── -->
+  <div class="modal-backdrop hidden" id="helpModal" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Keyboard Shortcuts</h2>
+        <button class="modal-close" id="helpModalClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <table class="shortcut-table">
+          <tbody>
+            <tr><td><kbd>Enter</kbd></td><td>Run circuit</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Undo</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Redo</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Toggle light / dark mode</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Clear circuit</td></tr>
+            <tr><td><kbd>F1</kbd> / <kbd>?</kbd></td><td>Open this help</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Close modal / deselect qubit</td></tr>
+            <tr><td>Click qubit label</td><td>Select that qubit row</td></tr>
+            <tr><td>Click gate (palette)</td><td>Place on selected qubit</td></tr>
+            <tr><td>Drag gate tile</td><td>Drop onto any circuit slot</td></tr>
+            <tr><td>Drag placed gate</td><td>Move to another slot</td></tr>
+            <tr><td>Click placed gate</td><td>Remove it</td></tr>
+            <tr><td>Double-click placed gate</td><td>Cycle control qubit (CNOT/CZ/SWAP)</td></tr>
+            <tr><td>Click control dot</td><td>Cycle that control to next free qubit</td></tr>
+            <tr><td>Drag control dot</td><td>Move control to any qubit in same column</td></tr>
+            <tr><td>CCX (Toffoli)</td><td>3-qubit gate — needs ≥3 qubits, has 2 control dots</td></tr>
+            <tr><td>MEASURE (M)</td><td>Visual mid-circuit measurement annotation</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOOLTIP ──────────────────────────────────────────────────────────── -->
+  <div class="gate-tooltip" id="gateTooltip" aria-hidden="true"></div>
+
   <script src="app.js"></script>
 </body>
 </html>

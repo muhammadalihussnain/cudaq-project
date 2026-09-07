@@ -55,6 +55,12 @@ If port 8080 is already in use, choose another port:
 make web PORT=8081
 ```
 
+### Share on the same network
+
+Run `make web`. The command prints a network URL such as `http://172.16.6.97:8081`. Send that URL to colleagues connected to the same Wi-Fi or LAN. They must keep the browser and your computer on the same network, and your computer must remain powered on while they use the app.
+
+If they cannot connect, allow the selected TCP port through the host firewall. The static frontend is available to them, but its Run button uses the browser preview until a CUDA-Q HTTP API is connected.
+
 ## Web application
 
 The circuit editor and HTTP adapter should call `build_kernel()` with the selected qubit states and gate placements, then call `cudaq::sample()` after selecting `qpp-cpu` or `nvidia`. Keeping this boundary in `building-kernels.cpp` ensures execution remains CUDA-Q based.
