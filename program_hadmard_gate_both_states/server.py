@@ -143,14 +143,22 @@ def build_and_run(payload: dict) -> dict:
                 raise ValueError('SWAP requires a control qubit')
             kernel.swap(qubits[ctrl], qubits[tgt])
         elif name == 'CCX':
-            # Toffoli gate — two control qubits
+            # Toffoli gate — PyKernel has no ccx(), so we use the standard
+            # 6-CNOT gate decomposition: H·CX·T/Tdg·CX·T·CX·Tdg·CX·T·T·H·CX·T·Tdg·CX
             ctrl2 = int(g.get('control2', -1))
             if ctrl < 0 or ctrl2 < 0:
                 raise ValueError('CCX (Toffoli) requires two control qubits (control and control2)')
             if len({tgt, ctrl, ctrl2}) < 3:
                 raise ValueError(f'CCX: target={tgt}, ctrl={ctrl}, ctrl2={ctrl2} must all be distinct')
-            # CUDA-Q: ccx(ctrl1, ctrl2, target)
-            kernel.ccx(qubits[ctrl], qubits[ctrl2], qubits[tgt])
+            c1, c2, t_q = qubits[ctrl], qubits[ctrl2], qubits[tgt]
+            kernel.h(t_q)
+            kernel.cx(c2,  t_q);  kernel.tdg(t_q)
+            kernel.cx(c1,  t_q);  kernel.t(t_q)
+            kernel.cx(c2,  t_q);  kernel.tdg(t_q)
+            kernel.cx(c1,  t_q)
+            kernel.t(c2);         kernel.t(t_q);  kernel.h(t_q)
+            kernel.cx(c1,  c2);   kernel.t(c1);   kernel.tdg(c2)
+            kernel.cx(c1,  c2)
         else:
             raise ValueError(f'Unsupported gate: {name}')
 
