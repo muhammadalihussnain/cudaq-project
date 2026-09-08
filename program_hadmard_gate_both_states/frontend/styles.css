@@ -154,7 +154,9 @@ h1, h2, p { margin: 0; }
   display: grid;
   /* default: sidebar=260  center=auto  results=260 */
   grid-template-columns: 260px minmax(0,1fr) 260px;
-  min-height: calc(100vh - 101px);
+  /* Fixed height so each column scrolls independently */
+  height: calc(100vh - 101px);   /* 60px topbar + 41px footer */
+  overflow: hidden;
   position: relative;
   transition: grid-template-columns .25s ease;
 }
@@ -188,8 +190,9 @@ h1, h2, p { margin: 0; }
 /* ── SIDEBARS ────────────────────────────────────────────────────────────── */
 .sidebar, .results-panel {
   background: var(--sidebar-bg);
-  overflow: hidden;
-  /* width is driven by grid column — overflow:hidden hides content when narrow */
+  overflow-y: auto;      /* sidebar scrolls independently */
+  overflow-x: hidden;
+  height: 100%;          /* fill full workspace height */
   transition: background .3s;
 }
 
@@ -199,6 +202,12 @@ h1, h2, p { margin: 0; }
 /* inner wrapper so content fades when panel collapses */
 .sidebar > *, .results-panel > * {
   transition: opacity .2s;
+}
+
+.sidebar.is-collapsed,
+.results-panel.is-collapsed {
+  overflow: hidden;   /* clip content as width → 0 */
+  padding: 0 !important;
 }
 
 .sidebar.is-collapsed > *,
@@ -337,20 +346,37 @@ select {
 
 /* ── CIRCUIT PANEL ───────────────────────────────────────────────────────── */
 .circuit-panel {
-  padding: 28px 30px;
+  padding: 28px 30px 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100%;          /* fill workspace height */
 }
 
 .circuit-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   margin-bottom: 22px;
   flex-shrink: 0;
+  gap: 12px;
 }
-.circuit-meta { display: flex; gap: 10px; padding-top: 7px; }
+
+.circuit-header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+/* Run button in the header — more compact than the old footer version */
+.run-button--header {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.circuit-meta { display: flex; gap: 10px; align-items: center; }
 .meta-divider { color: var(--line); }
 
 /* ── INITIAL STATE STRIP ─────────────────────────────────────────────────── */
@@ -610,7 +636,7 @@ select {
   color: var(--muted);
   font: 10px 'DM Mono', monospace;
   border-top: 1px solid var(--line);
-  padding-top: 16px;
+  padding: 14px 0 20px;
   flex-wrap: wrap;
   flex-shrink: 0;
 }
@@ -623,7 +649,6 @@ select {
 }
 
 .run-button {
-  margin-left: auto;
   border: 0;
   background: var(--amber);
   color: var(--ink);
@@ -631,6 +656,7 @@ select {
   font: 600 12px 'Space Grotesk', sans-serif;
   cursor: pointer;
   transition: filter .15s;
+  white-space: nowrap;
 }
 .run-button:hover { filter: brightness(1.15); }
 .run-symbol       { font-size: 10px; margin-right: 6px; }
@@ -761,7 +787,14 @@ select {
   letter-spacing: 1.5px;
   color: var(--muted);
   text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.bd-convention {
+  font: 9px 'DM Mono', monospace;
+  color: var(--muted);
   margin-bottom: 8px;
+  opacity: .7;
 }
 
 .bd-scroll {
@@ -799,10 +832,13 @@ select {
 .bd-state {
   padding: 6px 8px;
   color: var(--paper);
+  font-weight: 600;
+}
+
+.bd-state-inner {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 600;
 }
 
 .bd-swatch {
@@ -983,7 +1019,7 @@ select {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1050px) {
-  .workspace { grid-template-columns: 230px minmax(0,1fr) !important; }
+  .workspace { grid-template-columns: 230px minmax(0,1fr) !important; height: auto; min-height: calc(100vh - 101px); }
   .results-panel {
     grid-column: 1 / -1;
     border-left: 0; border-top: 1px solid var(--line);
@@ -991,8 +1027,8 @@ select {
     grid-template-columns: 1fr 2fr 1fr;
     gap: 20px;
     padding: 20px 24px;
-    opacity: 1 !important;
-    pointer-events: auto !important;
+    overflow-y: auto;
+    height: auto;
   }
   .panel-tab--right { display: none; }
   .result-empty  { padding: 12px 0; }
@@ -1001,12 +1037,13 @@ select {
 
 @media (max-width: 700px) {
   .topbar { padding: 0 14px; }
-  .workspace { display: block !important; }
-  .sidebar, .results-panel { padding: 18px 16px; opacity: 1 !important; pointer-events: auto !important; }
-  .circuit-panel { padding: 18px 16px; }
+  .workspace { display: block !important; height: auto; }
+  .sidebar, .results-panel { padding: 18px 16px !important; height: auto; overflow-y: visible; opacity: 1 !important; pointer-events: auto !important; }
+  .circuit-panel { padding: 18px 16px; height: auto; }
   .state-help { display: none; }
   .circuit-footer { flex-wrap: wrap; }
-  .run-button { width: 100%; margin-left: 0; }
+  .run-button--header { width: 100%; }
+  .circuit-header-right { flex-wrap: wrap; }
   .results-panel { display: block !important; border-left: 0; border-top: 1px solid var(--line); }
   .result-empty { padding: 20px 0; }
   .app-footer { padding: 0 14px; font-size: 8px; }

@@ -88,10 +88,15 @@
       <section class="circuit-panel" id="circuitPanel">
         <div class="circuit-header">
           <div><p class="eyebrow">03 / OPERATIONS</p><h2>Quantum circuit</h2></div>
-          <div class="circuit-meta">
-            <span id="registerMeta">3 qubits</span>
-            <span class="meta-divider">/</span>
-            <span id="depthMeta">0 depth</span>
+          <div class="circuit-header-right">
+            <div class="circuit-meta">
+              <span id="registerMeta">3 qubits</span>
+              <span class="meta-divider">/</span>
+              <span id="depthMeta">0 depth</span>
+            </div>
+            <button class="run-button run-button--header" id="runButton">
+              <span class="run-symbol">&#9654;</span> Run circuit
+            </button>
           </div>
         </div>
 
@@ -112,7 +117,6 @@
           <span><kbd>Ctrl+Z</kbd> Undo</span>
           <span><kbd>Ctrl+D</kbd> Theme</span>
           <span><kbd>F1</kbd> Help</span>
-          <button class="run-button" id="runButton"><span class="run-symbol">&#9654;</span> Run circuit</button>
         </div>
       </section>
 

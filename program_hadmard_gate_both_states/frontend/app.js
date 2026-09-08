@@ -922,8 +922,10 @@ function showResults(counts, note, elapsed=null, backend=selectedBackend, isPrev
     }).join('');
 
     return `<tr class="bd-row">
-      <td class="bd-state" style="--bar-color:${color}">
-        <span class="bd-swatch" style="background:${color}"></span>|${bits}⟩
+      <td class="bd-state">
+        <div class="bd-state-inner">
+          <span class="bd-swatch" style="background:${color}"></span>|${bits}⟩
+        </div>
       </td>
       ${cells}
       <td class="bd-shots">${count}</td>
@@ -933,6 +935,7 @@ function showResults(counts, note, elapsed=null, backend=selectedBackend, isPrev
 
   el.bitBreakdown.innerHTML = `
     <div class="bd-heading">BIT BREAKDOWN</div>
+    <div class="bd-convention">Convention: q0 (leftmost) → q${n-1} (rightmost)</div>
     <div class="bd-scroll">
       <table class="bd-table">
         <thead>
