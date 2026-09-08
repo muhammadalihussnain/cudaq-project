@@ -77,7 +77,7 @@ function localPreview({shots, qubitStates, circuit:circ}) {
       if(g.gate==='SWAP') [bits[g.control],bits[g.target]]=[bits[g.target],bits[g.control]];
       if(g.gate==='CCX'&&bits[g.control]&&bits[g.control2]) bits[g.target]^=1;
     });
-    const key=bits.slice().reverse().join('');
+    const key=bits.join('');  // q0-left, no reversal — matches CUDA-Q server convention
     res[key]=(res[key]||0)+1;
   }
   return res;
@@ -198,36 +198,40 @@ group('8. localPreview — basic gates');
 test('total shots correct',  ()=>assert.strictEqual(Object.values(localPreview({shots:200,qubitStates:['0','0'],circuit:[]})).reduce((a,b)=>a+b,0),200));
 test('|0⟩ no gates → "00"', ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['0','0'],circuit:[]})),['00']));
 test('|1⟩ no gates → "1"',  ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['1'],circuit:[]})),['1']));
-test('X flips bit',         ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['0','0'],circuit:[{gate:'X',target:0,control:-1,control2:-1,column:0}]})),['01']));
+// q0-left: X on q0 → q0=1,q1=0 → '10'
+test('X on q0 → "10"',      ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['0','0'],circuit:[{gate:'X',target:0,control:-1,control2:-1,column:0}]})),['10']));
+// X on q1 → q0=0,q1=1 → '01'
+test('X on q1 → "01"',      ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['0','0'],circuit:[{gate:'X',target:1,control:-1,control2:-1,column:0}]})),['01']));
 test('CNOT ctrl=1 flips',   ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['1','0'],circuit:[{gate:'CNOT',target:1,control:0,control2:-1,column:0}]})),['11']));
 test('CNOT ctrl=0 no flip', ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['0','0'],circuit:[{gate:'CNOT',target:1,control:0,control2:-1,column:0}]})),['00']));
 test('H produces both',     ()=>{ const r=localPreview({shots:2000,qubitStates:['0'],circuit:[{gate:'H',target:0,control:-1,control2:-1,column:0}]}); assert.ok(r['0']>600&&r['1']>600); });
-test('SWAP exchanges',       ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['1','0'],circuit:[{gate:'SWAP',target:1,control:0,control2:-1,column:0}]})),['10']));
+// SWAP q0=1,q1=0 → q0=0,q1=1 → '01'
+test('SWAP q0=1,q1=0 → "01"', ()=>assert.deepStrictEqual(Object.keys(localPreview({shots:50,qubitStates:['1','0'],circuit:[{gate:'SWAP',target:1,control:0,control2:-1,column:0}]})),['01']));
 
 group('9. localPreview — Toffoli CCX');
 test('CCX: both ctrl=1 → flips target', ()=>{
+  // q0=1,q1=1,q2=0 → CCX flips q2 → q0=1,q1=1,q2=1 → '111'
   const circ=[{gate:'CCX',target:2,control:0,control2:1,column:0}];
   const r=localPreview({shots:50,qubitStates:['1','1','0'],circuit:circ});
-  assert.deepStrictEqual(Object.keys(r),['111']);  // reversed: q0q1q2=111 → display 111
+  assert.deepStrictEqual(Object.keys(r),['111']);
 });
 test('CCX: ctrl0=0 → no flip', ()=>{
+  // q0=0,q1=1,q2=0 → ctrl0=0 so no flip → '010'
   const circ=[{gate:'CCX',target:2,control:0,control2:1,column:0}];
   const r=localPreview({shots:50,qubitStates:['0','1','0'],circuit:circ});
   assert.deepStrictEqual(Object.keys(r),['010']);
 });
 test('CCX: ctrl1=0 → no flip', ()=>{
-  // qubitStates=['1','0','0']: bits=[1,0,0], CCX ctrl0=1 but ctrl1=0 → no flip
-  // bits reversed → '001'
+  // q0=1,q1=0,q2=0 → ctrl1=0 so no flip → '100'
   const circ=[{gate:'CCX',target:2,control:0,control2:1,column:0}];
   const r=localPreview({shots:50,qubitStates:['1','0','0'],circuit:circ});
-  assert.deepStrictEqual(Object.keys(r),['001']);
+  assert.deepStrictEqual(Object.keys(r),['100']);
 });
-test('CCX: both ctrl=1 on |111⟩ → flips back to |110⟩', ()=>{
-  // qubitStates=['1','1','1']: bits=[1,1,1], CCX flips target(2) → bits=[1,1,0]
-  // bits reversed → '011'
+test('CCX: both ctrl=1 on |111⟩ → flips q2 back → "110"', ()=>{
+  // q0=1,q1=1,q2=1 → CCX flips q2 → q0=1,q1=1,q2=0 → '110'
   const circ=[{gate:'CCX',target:2,control:0,control2:1,column:0}];
   const r=localPreview({shots:50,qubitStates:['1','1','1'],circuit:circ});
-  assert.deepStrictEqual(Object.keys(r),['011']);
+  assert.deepStrictEqual(Object.keys(r),['110']);
 });
 test('CCX 3-qubit result keys length 3', ()=>{
   const r=localPreview({shots:50,qubitStates:['0','0','0'],circuit:[]});
@@ -291,12 +295,11 @@ test('bit string length equals qubit count', ()=>{
   Object.keys(r).forEach(bits=>assert.strictEqual(bits.length,3,`bad length: ${bits}`));
 });
 test('bits split correctly for per-qubit table', ()=>{
-  // '110' → q0='1', q1='1', q2='0'
-  const bits='110';
+  // '10' → q0='1', q1='0'  (X on q0, q0-left)
+  const bits='10';
   const cells=bits.split('');
-  assert.strictEqual(cells[0],'1'); // q0
-  assert.strictEqual(cells[1],'1'); // q1
-  assert.strictEqual(cells[2],'0'); // q2
+  assert.strictEqual(cells[0],'1'); // q0=1
+  assert.strictEqual(cells[1],'0'); // q1=0
 });
 test('percentage rounds to 1 decimal', ()=>{
   const count=333, total=1000;

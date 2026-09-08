@@ -618,6 +618,8 @@ function payload() {
 
 // ═════════════════════════════════════════════════════════════════════════════
 // LOCAL SIMULATION PREVIEW
+// Returns counts keyed by bitstring in q0-left order (same as CUDA-Q server).
+// bits[0] = q0, bits[1] = q1, ... bits[n-1] = q(n-1)
 // ═════════════════════════════════════════════════════════════════════════════
 function localPreview() {
   const shots = Number(el.shots.value);
@@ -634,10 +636,10 @@ function localPreview() {
       if (g.gate === 'H' || ROTATION.has(g.gate)) bits[g.target] = Math.random() < 0.5 ? 0 : 1;
       if (g.gate === 'CNOT' && bits[g.control])    bits[g.target] ^= 1;
       if (g.gate === 'SWAP') [bits[g.control], bits[g.target]] = [bits[g.target], bits[g.control]];
-      // Toffoli: flip target only when BOTH controls are |1⟩
       if (g.gate === 'CCX' && bits[g.control] && bits[g.control2]) bits[g.target] ^= 1;
     });
-    const key = bits.slice().reverse().join('');
+    // q0-left: bits[0]=q0, no reversal needed — matches CUDA-Q server convention
+    const key = bits.join('');
     res[key] = (res[key] || 0) + 1;
   }
   return res;
@@ -866,14 +868,16 @@ function updateConfirmBanner(state, backend, isPreview) {
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SHOW RESULTS
+// Both localPreview() and CUDA-Q server return bitstrings in q0-left order.
+// No reversal needed — display directly.
 // ═════════════════════════════════════════════════════════════════════════════
 function showResults(counts, note, elapsed=null, backend=selectedBackend, isPreview=false) {
-  // Reverse bits for display (LSB-right convention from CUDA-Q)
-  const rev={};
-  Object.entries(counts).forEach(([bits,count]) => {
-    const k=reverseBits(bits); rev[k]=(rev[k]||0)+count;
+  // Merge counts (both sources already q0-left, no reversal)
+  const merged = {};
+  Object.entries(counts).forEach(([bits, count]) => {
+    merged[bits] = (merged[bits] || 0) + count;
   });
-  const entries = Object.entries(rev).sort((a,b) => b[1]-a[1]);
+  const entries = Object.entries(merged).sort((a,b) => b[1]-a[1]);
   const max     = entries[0]?.[1] || 1;
   const total   = entries.reduce((s,[,c]) => s+c, 0);
   const n       = entries[0]?.[0].length ?? Number(el.qubitCount.value);
