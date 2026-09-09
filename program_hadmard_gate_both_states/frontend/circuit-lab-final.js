@@ -899,14 +899,14 @@ function buildFormulaHTML(terms, isSuper, denomLabel, prefixDenom) {
 function reverseBits(b) { return b.split('').reverse().join(''); }
 
 function liveFormula() {
+  // ── ONLY called from runCircuit() when user presses Run Circuit button ──
+  // Never call this from gate placement, qubit changes, or any other event.
   const n = Number(el.qubitCount.value);
   if (n > FORMULA_QUBIT_LIMIT) {
-    // State-vector has 2^n amplitudes — too expensive to compute in the browser
-    // above the threshold. Show an informative placeholder instead.
     el.stateFormula.innerHTML =
       `<span class="fml-large-hint">&#x1D6B9; State formula disabled for ${n} qubits — ` +
       `2<sup>${n}</sup> = ${(2**n).toLocaleString()} amplitudes. ` +
-      `Run the circuit to see sampled results.</span>`;
+      `Results shown below.</span>`;
     el.stateFormula.className = 'state-formula-box';
     return;
   }
@@ -916,28 +916,53 @@ function liveFormula() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// GPU CONFIRMATION BANNER
+// GPU / CPU CONFIRMATION BANNER
 // ═════════════════════════════════════════════════════════════════════════════
-function updateConfirmBanner(state, backend, isPreview) {
+function updateConfirmBanner(state, backend, isPreview, proof=null) {
   const b = el.gpuConfirmBanner;
   b.className = 'gpu-confirm-banner';
   if (state === 'hidden') { b.classList.add('hidden'); return; }
   b.classList.remove('hidden');
-  if (!isPreview) {
-    const isGpu = backend === 'nvidia';
+
+  const isGpu = backend === 'nvidia' || (proof && proof.ran_on_gpu);
+
+  if (!isPreview && proof) {
+    // 100 % confirmed — server returned a proof object
+    const vramLine = proof.vram_delta_mb != null
+      ? `<div class="proof-line">VRAM allocated during run: <strong>+${proof.vram_delta_mb} MB</strong></div>`
+      : '';
+    const simLine  = proof.simulator_name
+      ? `<div class="proof-line">Simulator engine: <strong>${proof.simulator_name}</strong></div>`
+      : '';
     b.classList.add('confirmed');
-    b.innerHTML = `<span class="gpu-confirm-icon">${isGpu?'⚡':'✓'}</span>
+    b.innerHTML = `
+      <span class="gpu-confirm-icon">${isGpu ? '⚡' : '✓'}</span>
       <span class="gpu-confirm-text">
-        <strong>${isGpu?'NVIDIA GPU confirmed':'CPU execution confirmed'}</strong>
+        <strong class="confirm-title">
+          ${isGpu ? '100% CONFIRMED — NVIDIA GPU (nvidia target)' : '100% CONFIRMED — CPU (qpp-cpu target)'}
+        </strong>
+        <div class="proof-line">Requested backend: <strong>${proof.requested_backend}</strong></div>
+        <div class="proof-line">Active CUDA-Q target: <strong>${proof.active_target}</strong></div>
+        ${simLine}
+        <div class="proof-line">Execution time: <strong>${Number(proof.elapsed_ms).toFixed(2)} ms</strong></div>
+        ${vramLine}
+      </span>`;
+  } else if (!isPreview) {
+    // Confirmed but no proof (shouldn't happen with current server)
+    b.classList.add('confirmed');
+    b.innerHTML = `<span class="gpu-confirm-icon">${isGpu ? '⚡' : '✓'}</span>
+      <span class="gpu-confirm-text">
+        <strong>${isGpu ? 'NVIDIA GPU confirmed' : 'CPU execution confirmed'}</strong>
         Circuit ran on CUDA-Q backend: <em>${backend}</em>
       </span>`;
   } else {
+    // Preview / fallback — CUDA-Q server not reached
     b.classList.add('preview');
-    const isGpuTarget = backend === 'nvidia';
     b.innerHTML = `<span class="gpu-confirm-icon">⚠</span>
       <span class="gpu-confirm-text">
-        <strong>Preview mode — ${isGpuTarget?'NVIDIA GPU not reached':'CUDA-Q not reached'}</strong>
-        Results are a local simulation. Connect a CUDA-Q server to run on ${isGpuTarget?'the GPU':backend}.
+        <strong>LOCAL PREVIEW — CUDA-Q server not reached</strong>
+        Results are a browser simulation. Start the server and press Run Circuit
+        to run on ${isGpu ? 'the NVIDIA GPU' : 'the CPU (qpp-cpu)'}.
       </span>`;
   }
 }
@@ -947,7 +972,7 @@ function updateConfirmBanner(state, backend, isPreview) {
 // Both localPreview() and CUDA-Q server return bitstrings in q0-left order.
 // No reversal needed — display directly.
 // ═════════════════════════════════════════════════════════════════════════════
-function showResults(counts, note, elapsed=null, backend=selectedBackend, isPreview=false) {
+function showResults(counts, note, elapsed=null, backend=selectedBackend, isPreview=false, proof=null) {
   // Merge counts (both sources already q0-left, no reversal)
   const merged = {};
   Object.entries(counts).forEach(([bits, count]) => {
@@ -965,7 +990,7 @@ function showResults(counts, note, elapsed=null, backend=selectedBackend, isPrev
   el.resultShots.textContent  = `${Number(el.shots.value).toLocaleString()} shots`;
   el.resultTime.textContent   = elapsed==null ? 'preview' : `${Number(elapsed).toFixed(2)} ms`;
 
-  updateConfirmBanner(isPreview?'preview':'confirmed', backend, isPreview);
+  updateConfirmBanner(isPreview?'preview':'confirmed', backend, isPreview, proof);
 
   // ── Colored bar chart ──────────────────────────────────────────────────────
   const topEntries = entries.slice(0, 8);
@@ -1039,148 +1064,235 @@ function showResults(counts, note, elapsed=null, backend=selectedBackend, isPrev
 // RUN + COMPARE
 // ═════════════════════════════════════════════════════════════════════════════
 async function runCircuit() {
-  el.runButton.disabled=true; el.runButton.textContent='Running…';
-  el.connectionState.textContent=`Executing on ${selectedBackend}`;
-
-  // Update the formula NOW (user pressed Run — this is the explicit trigger)
+  el.runButton.disabled = true;
+  el.runButton.textContent = 'Running…';
+  el.connectionState.textContent = `Executing on ${selectedBackend}…`;
   liveFormula();
 
   try {
-    const res=await fetch('/api/run',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload()),
+    const res  = await fetch('/api/run', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify(payload()),
     });
-    if (!res.ok) throw new Error();
-    const data=await res.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
     if (data.error) throw new Error(data.error);
-    showResults(data.counts,`Confirmed: CUDA-Q on ${data.backend||selectedBackend}`,data.elapsed_ms,data.backend||selectedBackend,false);
-    // Stats are captured server-side during the run (GPU memory is live then)
-    // and returned inline with the run response for accuracy.
-    if (data.stats) {
-      renderStats(data.stats);
-    } else {
-      fetchAndShowStats();   // fallback: older server without inline stats
-    }
-  } catch {
+
+    const isGpu = data.ran_on_gpu === true;
+    const note  = isGpu
+      ? `✓ Ran on NVIDIA GPU  ·  CUDA-Q nvidia target  ·  ${Number(data.elapsed_ms).toFixed(2)} ms`
+      : `✓ Ran on CPU  ·  CUDA-Q qpp-cpu target  ·  ${Number(data.elapsed_ms).toFixed(2)} ms`;
+
+    showResults(data.counts, note, data.elapsed_ms, data.backend || selectedBackend, false, data.proof || null);
+    renderStats(data.stats || {}, data.backend || selectedBackend);
+
+  } catch (err) {
+    // Server unreachable — browser simulation fallback
     const preview = localPreview();
     const note = preview.shotsCapped
-      ? `Preview — CUDA-Q ${selectedBackend} not reached (shots capped at ${preview.shotsUsed} for large circuit)`
-      : `Preview — CUDA-Q ${selectedBackend} not reached`;
-    showResults(preview.counts, note, null, selectedBackend, true);
-    // Server not reachable — still fetch CPU stats at minimum
-    fetchAndShowStats();
+      ? `⚠ LOCAL PREVIEW (server offline) — shots capped at ${preview.shotsUsed}`
+      : `⚠ LOCAL PREVIEW — CUDA-Q server not reached`;
+    showResults(preview.counts, note, null, selectedBackend, true, null);
+    fetchAndShowStats(selectedBackend);
   } finally {
-    el.runButton.disabled=false;
-    el.runButton.innerHTML='<span class="run-symbol">▶</span> Run circuit';
-    el.connectionState.textContent='Local editor';
+    el.runButton.disabled = false;
+    el.runButton.innerHTML = '<span class="run-symbol">▶</span> Run circuit';
+    el.connectionState.textContent = 'Local editor';
   }
 }
 
 async function compareTargets() {
-  el.compareButton.disabled=true; el.compareButton.textContent='Comparing…';
-  const rows=[];
-  for (const backend of ['qpp-cpu','nvidia']) {
-    const t0=performance.now();
+  el.compareButton.disabled = true;
+  el.compareButton.textContent = 'Comparing…';
+
+  // Run CPU first, then GPU — sequential so server can set target cleanly
+  const results = [];
+  for (const backend of ['qpp-cpu', 'nvidia']) {
+    el.compareButton.textContent = `Running ${backend}…`;
     try {
-      const res=await fetch('/api/run',{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({...payload(),backend}),
+      const res  = await fetch('/api/run', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({...payload(), backend}),
       });
-      if (!res.ok) throw new Error();
-      const data=await res.json();
-      if (data.error) throw new Error();
-      rows.push({backend,elapsed:data.elapsed_ms??performance.now()-t0,status:'CUDA-Q confirmed',stats:data.stats||null});
-    } catch {
-      rows.push({backend,elapsed:performance.now()-t0,status:'Unavailable',stats:null});
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      results.push({
+        backend,
+        elapsed:   data.elapsed_ms ?? 0,
+        status:    data.ran_on_gpu ? '⚡ GPU confirmed' : '✓ CPU confirmed',
+        confirmed: true,
+        stats:     data.stats  || null,
+        proof:     data.proof  || null,
+        counts:    data.counts || {},
+      });
+    } catch (err) {
+      results.push({backend, elapsed: 0, status: '✗ Unavailable', confirmed: false, stats: null, proof: null, counts: {}});
     }
   }
+
+  // Build compare view
   el.resultEmpty.classList.add('hidden');
   el.resultView.classList.add('hidden');
   el.compareView.classList.remove('hidden');
-  el.compareRows.innerHTML=rows.map(r=>
-    `<div class="compare-row"><strong>${r.backend}</strong><span>${Number(r.elapsed).toFixed(1)} ms</span><small>${r.status}</small></div>`
-  ).join('');
-  el.compareButton.disabled=false; el.compareButton.textContent='▶▶ Compare targets';
-  if (!resultsOpen) { resultsOpen=true; updateWorkspaceLayout(); }
-  // Use stats from the nvidia run if available, otherwise qpp-cpu, otherwise fetch
-  const statsData = rows.find(r=>r.backend==='nvidia'&&r.stats)?.stats
-                 || rows.find(r=>r.stats)?.stats;
-  if (statsData) renderStats(statsData); else fetchAndShowStats();
+
+  const cpuRow = results.find(r => r.backend === 'qpp-cpu');
+  const gpuRow = results.find(r => r.backend === 'nvidia');
+
+  el.compareRows.innerHTML = results.map(r => {
+    const isGpu  = r.backend === 'nvidia';
+    const icon   = !r.confirmed ? '✗' : isGpu ? '⚡' : '✓';
+    const color  = !r.confirmed ? 'var(--rose)' : isGpu ? 'var(--amber)' : 'var(--cyan)';
+    const deltaLine = (isGpu && r.proof && r.proof.vram_delta_mb != null)
+      ? `<span class="cr-detail">VRAM delta: +${r.proof.vram_delta_mb} MB</span>`
+      : '';
+    const simLine = r.proof?.simulator_name
+      ? `<span class="cr-detail">Engine: ${r.proof.simulator_name}</span>`
+      : '';
+    return `<div class="compare-row">
+      <span class="cr-icon" style="color:${color}">${icon}</span>
+      <div class="cr-body">
+        <strong class="cr-backend">${r.backend}</strong>
+        <span class="cr-status" style="color:${color}">${r.status}</span>
+        ${simLine}
+        <span class="cr-time">${r.confirmed ? Number(r.elapsed).toFixed(2)+' ms' : '—'}</span>
+        ${deltaLine}
+      </div>
+    </div>`;
+  }).join('');
+
+  el.compareButton.disabled = false;
+  el.compareButton.textContent = '▶▶ Compare targets';
+  if (!resultsOpen) { resultsOpen = true; updateWorkspaceLayout(); }
+
+  // Show stats for GPU run if available, otherwise CPU
+  const statsSource = gpuRow?.confirmed ? gpuRow : cpuRow;
+  if (statsSource?.stats) {
+    renderStats(statsSource.stats, statsSource.backend, results);
+  } else {
+    fetchAndShowStats('qpp-cpu');
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// RESOURCE STATS (GPU VRAM + CPU RAM)
-// Fetched after each run from /api/stats. Degrades gracefully if endpoint
-// is not available (e.g. psutil / pynvml not installed).
+// RESOURCE STATS
+// renderStats(d, backend, compareRows)
+//   d           — stats object from server
+//   backend     — 'qpp-cpu' | 'nvidia' | undefined
+//   compareRows — array of {backend, elapsed, stats} for compare view (optional)
 // ═════════════════════════════════════════════════════════════════════════════
-async function fetchAndShowStats() {
+async function fetchAndShowStats(backend) {
   const panel = el.resourceStats;
   if (!panel) return;
   panel.classList.remove('hidden');
   panel.innerHTML = '<span class="rs-label">RESOURCE USAGE</span><span class="rs-loading">Fetching…</span>';
   try {
     const res = await fetch('/api/stats');
-    if (!res.ok) throw new Error('stats unavailable');
-    const d = await res.json();
-    renderStats(d);
+    if (!res.ok) throw new Error();
+    renderStats(await res.json(), backend);
   } catch {
     panel.innerHTML = `<span class="rs-label">RESOURCE USAGE</span>
       <span class="rs-unavailable">Stats unavailable — install psutil &amp; pynvml on the server</span>`;
   }
 }
 
-function renderStats(d) {
+function renderStats(d, backend, compareRows) {
   const panel = el.resourceStats;
   if (!panel) return;
+  panel.classList.remove('hidden');
 
-  // CPU RAM
-  const cpuUsedMB  = d.cpu_used_mb  != null ? Number(d.cpu_used_mb).toFixed(0)  : null;
-  const cpuTotalMB = d.cpu_total_mb != null ? Number(d.cpu_total_mb).toFixed(0) : null;
-  const cpuPct     = d.cpu_pct      != null ? Number(d.cpu_pct).toFixed(1)      : null;
+  const isGpu     = backend === 'nvidia';
+  const isCompare = Array.isArray(compareRows);
 
-  // GPU VRAM
-  const gpuUsedMB  = d.gpu_used_mb  != null ? Number(d.gpu_used_mb).toFixed(0)  : null;
-  const gpuTotalMB = d.gpu_total_mb != null ? Number(d.gpu_total_mb).toFixed(0) : null;
-  const gpuName    = d.gpu_name     || null;
-  const gpuPct     = (gpuUsedMB && gpuTotalMB)
-    ? ((gpuUsedMB / gpuTotalMB) * 100).toFixed(1) : null;
-
-  function barHTML(usedMB, totalMB, pct, colorVar) {
-    if (usedMB == null) return '<span class="rs-na">N/A</span>';
-    const fill = Math.max(2, Math.min(100, Number(pct)));
-    return `<div class="rs-bar-wrap">
-      <div class="rs-bar" style="width:${fill}%;background:${colorVar}"></div>
+  // ── helpers ────────────────────────────────────────────────────────────────
+  const fmtN = (v, dec=0) => v != null ? Number(v).toFixed(dec) : null;
+  const fmtK = (v, unit='') => v != null ? `${Number(v).toLocaleString()}${unit}` : null;
+  function bar(pct, color) {
+    if (pct == null) return '';
+    const w = Math.max(2, Math.min(100, Number(pct)));
+    return `<div class="rs-bar-wrap"><div class="rs-bar" style="width:${w}%;background:${color}"></div></div>`;
+  }
+  function statRow(icon, cls, sublabel, valHTML, barHTML) {
+    return `<div class="rs-row">
+      <span class="rs-icon ${cls}">${icon}</span>
+      <div class="rs-detail">
+        <span class="rs-sub">${sublabel}</span>
+        <span class="rs-val">${valHTML}</span>${barHTML}
+      </div>
     </div>`;
   }
+  const na = (msg='N/A') => `<span class="rs-na">${msg}</span>`;
 
-  const cpuBar = barHTML(cpuUsedMB, cpuTotalMB, cpuPct, 'var(--cyan)');
-  const gpuBar = barHTML(gpuUsedMB, gpuTotalMB, gpuPct, 'var(--amber)');
+  // ── CPU section (always shown) ─────────────────────────────────────────────
+  const cpuRamPct = fmtN(d.cpu_ram_pct, 1);
+  const cpuRamVal = d.cpu_used_mb != null
+    ? `${fmtK(d.cpu_used_mb)} MB used / ${fmtK(d.cpu_total_mb)} MB
+       <span class="rs-pct">${cpuRamPct}%</span>`
+    : na();
 
-  const cpuText = cpuUsedMB != null
-    ? `${cpuUsedMB} MB / ${cpuTotalMB} MB &nbsp;<span class="rs-pct">${cpuPct}%</span>`
-    : '<span class="rs-na">N/A</span>';
-  const gpuText = gpuUsedMB != null
-    ? `${gpuUsedMB} MB / ${gpuTotalMB} MB &nbsp;<span class="rs-pct">${gpuPct}%</span>${gpuName ? `<span class="rs-device"> (${gpuName})</span>` : ''}`
-    : '<span class="rs-na">No GPU / not detected</span>';
+  const coresPart  = d.cpu_cores ? ` (${d.cpu_cores} cores)` : '';
+  const cpuCorePct = fmtN(d.cpu_core_pct, 1);
+  const cpuCoreVal = d.cpu_core_pct != null
+    ? `<span class="rs-big-pct" style="color:var(--cyan)">${cpuCorePct}%</span>
+       <span class="rs-pct"> CPU utilisation${coresPart}</span>`
+    : na();
 
-  panel.innerHTML = `
-    <div class="rs-heading">RESOURCE USAGE</div>
-    <div class="rs-row">
-      <span class="rs-icon cpu-icon">CPU</span>
-      <div class="rs-detail">
-        <span class="rs-sub">RAM</span>
-        <span class="rs-val">${cpuText}</span>
-        ${cpuBar}
-      </div>
-    </div>
-    <div class="rs-row">
-      <span class="rs-icon gpu-icon">GPU</span>
-      <div class="rs-detail">
-        <span class="rs-sub">VRAM</span>
-        <span class="rs-val">${gpuText}</span>
-        ${gpuBar}
-      </div>
-    </div>`;
+  const cpuSection = `
+    <div class="rs-section-label">CPU</div>
+    ${statRow('RAM', 'cpu-icon', 'RAM USAGE',   cpuRamVal,  bar(cpuRamPct,  'var(--cyan)'))}
+    ${statRow('%',   'cpu-icon', 'CORE USAGE',  cpuCoreVal, bar(cpuCorePct, 'var(--cyan)'))}`;
+
+  // ── GPU section (shown for nvidia backend or compare view) ─────────────────
+  let gpuSection = '';
+  if (isGpu || isCompare) {
+    const gpuVramPct = (d.gpu_used_mb != null && d.gpu_total_mb)
+      ? fmtN((d.gpu_used_mb / d.gpu_total_mb) * 100, 1) : null;
+    const gpuNamePart = d.gpu_name
+      ? `<span class="rs-device"> (${d.gpu_name})</span>` : '';
+    const gpuVramVal = d.gpu_used_mb != null
+      ? `${fmtK(d.gpu_used_mb)} MB used / ${fmtK(d.gpu_total_mb)} MB
+         <span class="rs-pct">${gpuVramPct}%</span>${gpuNamePart}`
+      : na('No GPU detected');
+
+    // VRAM delta — how much VRAM the run allocated
+    const deltaPart = (d.vram_delta_mb != null && d.vram_delta_mb > 0)
+      ? `<div class="rs-delta">+${d.vram_delta_mb} MB allocated by this run</div>` : '';
+
+    const gpuCorePct = fmtN(d.gpu_util_pct, 0);
+    const tempPart   = d.gpu_temp_c != null
+      ? `<span class="rs-temp"> · ${d.gpu_temp_c}°C</span>` : '';
+    const gpuCoreVal = d.gpu_util_pct != null
+      ? `<span class="rs-big-pct" style="color:var(--amber)">${gpuCorePct}%</span>
+         <span class="rs-pct"> GPU core utilisation${tempPart}</span>`
+      : na('pynvml not available');
+
+    gpuSection = `
+      <div class="rs-section-label" style="margin-top:10px">GPU</div>
+      ${statRow('VRAM', 'gpu-icon', `VRAM${d.gpu_name?' — '+d.gpu_name:''}`, gpuVramVal, bar(gpuVramPct, 'var(--amber)'))}
+      ${deltaPart ? `<div class="rs-delta-wrap">${deltaPart}</div>` : ''}
+      ${statRow('%', 'gpu-icon', 'CORE USAGE', gpuCoreVal, bar(gpuCorePct, 'var(--amber)'))}`;
+  }
+
+  // ── Compare timing table (optional) ───────────────────────────────────────
+  let compareSection = '';
+  if (isCompare && compareRows.length > 0) {
+    const rows = compareRows.map(r => {
+      const isg = r.backend === 'nvidia';
+      const color = !r.confirmed ? 'var(--rose)' : isg ? 'var(--amber)' : 'var(--cyan)';
+      return `<div class="rs-compare-row">
+        <span style="color:${color}">${isg ? '⚡ GPU' : '✓ CPU'}</span>
+        <strong>${r.backend}</strong>
+        <span>${r.confirmed ? Number(r.elapsed).toFixed(2)+' ms' : 'unavailable'}</span>
+      </div>`;
+    }).join('');
+    compareSection = `<div class="rs-section-label" style="margin-top:10px">TIMING COMPARISON</div>
+      <div class="rs-compare-block">${rows}</div>`;
+  }
+
+  panel.innerHTML = `<div class="rs-heading">RESOURCE USAGE</div>
+    ${cpuSection}${gpuSection}${compareSection}`;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

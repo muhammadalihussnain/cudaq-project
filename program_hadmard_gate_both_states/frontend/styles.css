@@ -628,6 +628,66 @@ select {
 }
 .slot:hover .placeholder { border-color: var(--muted); }
 
+/* ── ZOOM CONTROLS ───────────────────────────────────────────────────────── */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.zoom-controls .zoom-btn {
+  /* override icon-button defaults to fit flush in the group */
+  border: 0;
+  border-radius: 0;
+  padding: 5px 9px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--panel-2);
+  color: var(--cyan);
+  transition: background .15s, color .15s;
+}
+.zoom-controls .zoom-btn:hover {
+  background: var(--sp-bg);
+  color: var(--cyan);
+  border-color: transparent;
+}
+.zoom-controls .zoom-btn:disabled {
+  opacity: .3;
+  cursor: not-allowed;
+}
+
+.zoom-level-btn {
+  background: var(--panel-2);
+  border: 0;
+  border-left:  1px solid var(--line);
+  border-right: 1px solid var(--line);
+  color: var(--paper);
+  font: 500 11px 'DM Mono', monospace;
+  min-width: 42px;
+  padding: 5px 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: background .15s, color .15s;
+  letter-spacing: .5px;
+}
+.zoom-level-btn:hover {
+  background: var(--sp-bg);
+  color: var(--cyan);
+}
+
+/* ── CIRCUIT BOARD ZOOM WRAPPER ──────────────────────────────────────────── */
+/* CSS zoom participates in layout (unlike transform:scale) so the scroll
+   container correctly grows/shrinks with the board.                       */
+.circuit-board-scaler {
+  /* zoom is set by JS at runtime */
+  /* No width or transform tricks needed — zoom handles everything */
+}
+
 /* ── CIRCUIT FOOTER ──────────────────────────────────────────────────────── */
 .circuit-footer {
   display: flex;
@@ -714,10 +774,10 @@ select {
 /* ── GPU / BACKEND CONFIRMATION BANNER ──────────────────────────────────── */
 .gpu-confirm-banner {
   display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 9px 12px;
-  border-radius: 4px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 5px;
   margin-bottom: 14px;
   font: 11px 'DM Mono', monospace;
   letter-spacing: .4px;
@@ -725,28 +785,138 @@ select {
   transition: opacity .3s;
 }
 
-/* confirmed on real hardware */
+/* confirmed — ran on real CUDA-Q backend */
 .gpu-confirm-banner.confirmed {
-  background: rgba(78, 203, 113, .12);
+  background: rgba(78, 203, 113, .10);
   border-color: var(--green);
   color: var(--green);
 }
 
-/* preview / fallback — not confirmed */
+/* preview / fallback */
 .gpu-confirm-banner.preview {
-  background: rgba(244, 184, 96, .12);
+  background: rgba(244, 184, 96, .10);
   border-color: var(--amber);
   color: var(--amber);
 }
 
 .gpu-confirm-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+.gpu-confirm-text {
+  line-height: 1.6;
+  flex: 1;
+  min-width: 0;
+}
+
+/* bold title line inside banner */
+.confirm-title {
+  display: block;
+  font: 700 11px 'DM Mono', monospace;
+  margin-bottom: 5px;
+  letter-spacing: .6px;
+}
+
+/* each key=value proof line */
+.proof-line {
+  display: block;
+  font: 10px 'DM Mono', monospace;
+  color: inherit;
+  opacity: .85;
+  margin-top: 2px;
+}
+.proof-line strong {
+  font-weight: 700;
+  opacity: 1;
+}
+
+/* ── COMPARE VIEW ROWS ───────────────────────────────────────────────────── */
+.compare-heading {
+  font: 700 10px 'DM Mono', monospace;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.compare-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.compare-row:last-child { border-bottom: none; }
+
+.cr-icon {
   font-size: 14px;
   flex-shrink: 0;
+  margin-top: 1px;
   line-height: 1;
 }
 
-.gpu-confirm-text { line-height: 1.45; }
-.gpu-confirm-text strong { display: block; font-weight: 600; }
+.cr-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cr-backend {
+  font: 700 11px 'DM Mono', monospace;
+  color: var(--paper);
+}
+
+.cr-status {
+  font: 10px 'DM Mono', monospace;
+  font-weight: 600;
+}
+
+.cr-time {
+  font: 10px 'DM Mono', monospace;
+  color: var(--muted);
+}
+
+.cr-detail {
+  font: 9px 'DM Mono', monospace;
+  color: var(--muted);
+  display: block;
+}
+
+/* ── RESOURCE STATS — extra classes ─────────────────────────────────────── */
+.rs-delta-wrap {
+  padding-left: 40px;   /* aligns under rs-detail, clears the icon */
+  margin-top: -4px;
+  margin-bottom: 6px;
+}
+
+.rs-delta {
+  font: 700 10px 'DM Mono', monospace;
+  color: var(--amber);
+  letter-spacing: .3px;
+}
+
+.rs-compare-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.rs-compare-row {
+  display: grid;
+  grid-template-columns: 50px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font: 10px 'DM Mono', monospace;
+  color: var(--paper);
+}
+.rs-compare-row strong { font-weight: 600; }
+.rs-compare-row span:last-child { color: var(--muted); text-align: right; }
 
 .result-summary {
   display: flex; justify-content: space-between; align-items: center;
@@ -1013,6 +1183,154 @@ select {
   padding: 2px 5px;
   font: 10px 'DM Mono', monospace;
   color: var(--paper);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESOURCE STATS PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+.resource-stats {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.rs-heading {
+  font: 700 10px 'DM Mono', monospace;
+  letter-spacing: 1.5px;
+  color: var(--paper);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.rs-section-label {
+  font: 700 9px 'DM Mono', monospace;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin: 8px 0 6px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rs-label {
+  font: 10px 'DM Mono', monospace;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.rs-loading,
+.rs-unavailable {
+  font: 10px 'DM Mono', monospace;
+  color: var(--muted);
+  display: block;
+  padding: 4px 0;
+  line-height: 1.6;
+}
+
+.rs-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.rs-row:last-child { margin-bottom: 0; }
+
+.rs-icon {
+  flex-shrink: 0;
+  font: 700 9px 'DM Mono', monospace;
+  letter-spacing: .5px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  margin-top: 1px;
+  line-height: 1.4;
+  min-width: 30px;
+  text-align: center;
+}
+.cpu-icon {
+  background: rgba(85, 214, 194, .15);
+  color: var(--cyan);
+  border: 1px solid rgba(85, 214, 194, .4);
+}
+.gpu-icon {
+  background: rgba(244, 184, 96, .15);
+  color: var(--amber);
+  border: 1px solid rgba(244, 184, 96, .4);
+}
+
+.rs-detail {
+  flex: 1;
+  min-width: 0;
+}
+
+.rs-sub {
+  font: 9px 'DM Mono', monospace;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.rs-val {
+  font: 11px 'DM Mono', monospace;
+  color: var(--paper);
+  display: block;
+  margin-bottom: 5px;
+  line-height: 1.5;
+}
+
+/* big % number shown for utilisation rows */
+.rs-big-pct {
+  font: 700 14px 'DM Mono', monospace;
+}
+
+.rs-pct  { color: var(--muted); font-size: 10px; }
+.rs-temp { color: var(--muted); font-size: 10px; margin-left: 4px; }
+
+.rs-device {
+  color: var(--muted);
+  font: 9px 'DM Mono', monospace;
+}
+
+.rs-na { color: var(--muted); font-style: italic; font-size: 10px; }
+
+.rs-bar-wrap {
+  height: 6px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+.rs-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .5s ease;
+  min-width: 3px;
+}
+
+.fml-idle-hint {
+  font: 11px 'DM Mono', monospace;
+  color: var(--muted);
+  font-style: italic;
+}
+.fml-idle-hint strong {
+  color: var(--amber);
+  font-style: normal;
+}
+
+/* ── FORMULA large-qubit placeholder ─────────────────────────────────────── */
+.fml-large-hint {
+  font: 11px 'DM Mono', monospace;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: normal;
+}
+.fml-large-hint sup {
+  font-size: 8px;
+  vertical-align: super;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

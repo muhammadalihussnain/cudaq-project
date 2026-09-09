@@ -94,6 +94,12 @@
               <span class="meta-divider">/</span>
               <span id="depthMeta">0 depth</span>
             </div>
+            <!-- ── ZOOM CONTROLS ──────────────────────────────────────── -->
+            <div class="zoom-controls" role="group" aria-label="Zoom controls">
+              <button class="icon-button zoom-btn" id="zoomOut"  title="Zoom out (Ctrl+−)" aria-label="Zoom out">&#8722;</button>
+              <button class="zoom-level-btn"       id="zoomReset" title="Reset zoom (Ctrl+0)" aria-label="Reset zoom">100%</button>
+              <button class="icon-button zoom-btn" id="zoomIn"   title="Zoom in (Ctrl+=)"  aria-label="Zoom in">&#43;</button>
+            </div>
             <button class="run-button run-button--header" id="runButton">
               <span class="run-symbol">&#9654;</span> Run circuit
             </button>
@@ -109,7 +115,9 @@
         <div class="circuit-scroll">
           <!-- SVG overlay for 2-qubit connector lines — sits above the board -->
           <svg id="connectorSvg" class="connector-svg" aria-hidden="true"></svg>
-          <div class="circuit-board" id="circuitBoard"></div>
+          <div class="circuit-board-scaler" id="circuitBoardScaler">
+            <div class="circuit-board" id="circuitBoard"></div>
+          </div>
         </div>
 
         <div class="circuit-footer">
@@ -132,7 +140,13 @@
         </div>
 
         <div class="formula-heading">QUANTUM STATE</div>
-        <div id="stateFormula" class="state-formula-box"></div>
+        <div id="stateFormula" class="state-formula-box state-formula-idle">
+          <span class="fml-idle-hint">Press <strong>Run Circuit</strong> to calculate the output state.</span>
+        </div>
+
+        <!-- ── HARDWARE CONFIRMATION BANNER ──────────────────────────── -->
+        <!-- Sits outside resultView/compareView so it's always visible   -->
+        <div id="gpuConfirmBanner" class="gpu-confirm-banner hidden" role="status" aria-live="polite"></div>
 
         <div id="resultEmpty" class="result-empty">
           <div class="empty-orbit">&#9671;</div>
@@ -140,9 +154,6 @@
         </div>
 
         <div id="resultView" class="result-view hidden">
-
-          <!-- GPU / backend confirmation banner -->
-          <div id="gpuConfirmBanner" class="gpu-confirm-banner hidden" role="status" aria-live="polite"></div>
 
           <div class="result-summary">
             <span id="resultTarget">qpp-cpu</span>
@@ -169,6 +180,10 @@
           <span>Most likely state</span>
           <strong id="mostLikely">--</strong>
         </div>
+
+        <!-- ── RESOURCE USAGE ──────────────────────────────────────────── -->
+        <div id="resourceStats" class="resource-stats hidden" role="status" aria-live="polite"></div>
+
       </aside>
 
     </section><!-- /workspace -->
@@ -195,6 +210,10 @@
             <tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Redo</td></tr>
             <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Toggle light / dark mode</td></tr>
             <tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Clear circuit</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>=</kbd></td><td>Zoom in</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Zoom out</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Reset zoom to 100%</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Scroll</kbd></td><td>Zoom in / out with mouse wheel</td></tr>
             <tr><td><kbd>F1</kbd> / <kbd>?</kbd></td><td>Open this help</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>Close modal / deselect qubit</td></tr>
             <tr><td>Click qubit label</td><td>Select that qubit row</td></tr>
@@ -216,6 +235,6 @@
   <!-- ── TOOLTIP ──────────────────────────────────────────────────────────── -->
   <div class="gate-tooltip" id="gateTooltip" aria-hidden="true"></div>
 
-  <script src="app.js"></script>
+  <script src="circuit-lab-final.js"></script>
 </body>
 </html>
