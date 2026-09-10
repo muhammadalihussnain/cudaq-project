@@ -1,6 +1,4 @@
-from pathlib import Path
-
-text = r"""QFT / IQFT LARGE-SCALE SIMULATION
+QFT / IQFT LARGE-SCALE SIMULATION
 Task-by-Task Implementation Plan
 =================================
 
@@ -578,7 +576,3 @@ FIRST 10 TASKS TO DO NOW
 Rule:
 Do not move to the next scale when the previous scale has an unexplained
 verification error.
-"""
-path = Path("qft_iqft_task_by_task_plan.txt")
-path.write_text(text, encoding="utf-8")
-print(path)
