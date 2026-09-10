@@ -1,0 +1,584 @@
+from pathlib import Path
+
+text = r"""QFT / IQFT LARGE-SCALE SIMULATION
+Task-by-Task Implementation Plan
+=================================
+
+Goal
+----
+Build and verify a QFT -> IQFT implementation using:
+1. CUDA-Q state-vector simulation as an exact reference for small systems.
+2. CUDA-Q TensorNet / MPS simulation for larger systems.
+3. Quimb tensor networks as an independent implementation/reference.
+4. Scaling experiments from 8 -> 25 -> 50 -> 100 qubits and beyond.
+
+Important principle
+-------------------
+Do NOT split a 100/2000-qubit QFT into independent 25-qubit chunks and concatenate
+the results. QFT contains controlled phase rotations between different qubits, so
+correlations across the whole system must be preserved.
+
+Recommended architecture
+-------------------------
+Circuit definition
+       |
+       +----> CUDA-Q state vector ----> exact reference (small N)
+       |
+       +----> CUDA-Q TensorNet/MPS ---> large-N simulation
+       |
+       +----> Quimb Tensor Network ---> independent TN implementation
+                         |
+                         v
+                  Verification layer
+                         |
+              +----------+----------+
+              |          |          |
+            Norm      Fidelity    QFT-IQFT
+              |          |          |
+              +----------+----------+
+                         |
+                         v
+                  Scaling results
+
+
+PHASE 0 - Environment and baseline
+==================================
+
+Task 0.1 - Record software versions
+------------------------------------
+Check and record:
+- CUDA-Q version
+- Python version
+- CUDA version
+- NVIDIA driver version
+- Quimb version
+- GPU model and memory
+- CPU RAM
+
+Expected output:
+A text file containing all environment information.
+
+Task 0.2 - Check available CUDA-Q backends
+------------------------------------------
+Determine which of these are available in the installed CUDA-Q version:
+- state-vector simulator
+- tensornet
+- tensornet-mps
+- other relevant tensor-network backends
+
+Do not assume backend names. Check the installed version first.
+
+Task 0.3 - Create project structure
+-----------------------------------
+Recommended:
+
+qft-scaling/
+  circuits/
+  cudaq_reference/
+  cudaq_tensornet/
+  quimb_tensor/
+  verification/
+  experiments/
+  results/
+  docs/
+
+
+PHASE 1 - Mathematical reference
+=================================
+
+Task 1.1 - Write the QFT definition
+------------------------------------
+For N qubits / dimension M = 2^N:
+
+QFT|x> = (1/sqrt(M)) * sum_y exp(2*pi*i*x*y/M) |y>
+
+The inverse QFT is:
+
+IQFT|y> = (1/sqrt(M)) * sum_x exp(-2*pi*i*x*y/M) |x>
+
+Task 1.2 - Define the circuit decomposition
+--------------------------------------------
+Implement QFT using:
+- Hadamard gates
+- controlled phase rotations
+- final qubit swaps if using the standard ordering
+
+Implement IQFT using:
+- inverse swaps
+- inverse controlled rotations
+- Hadamard gates
+
+Task 1.3 - Fix a qubit-order convention
+----------------------------------------
+Document:
+- which qubit is q0
+- whether q0 is the least-significant bit
+- whether the QFT output is bit-reversed
+- whether swaps are included
+
+This must remain identical across CUDA-Q and Quimb.
+
+
+PHASE 2 - CUDA-Q exact reference
+================================
+
+Task 2.1 - Implement 3-qubit QFT
+--------------------------------
+Use a very small circuit first.
+
+Test:
+|000> -> QFT -> IQFT -> |000>
+
+Expected:
+Final state approximately |000>.
+
+Task 2.2 - Test other basis states
+----------------------------------
+Test:
+|001>
+|010>
+|011>
+|100>
+|101>
+|110>
+|111>
+
+For each:
+QFT -> IQFT -> original state
+
+Task 2.3 - Test a superposition
+--------------------------------
+Example:
+H on one or more qubits, followed by QFT and IQFT.
+
+Expected:
+The original state is recovered.
+
+Task 2.4 - Save exact reference states
+--------------------------------------
+For small N, save:
+- input state
+- QFT output
+- IQFT output
+- probabilities
+- amplitudes
+
+These become the reference data for the tensor-network implementation.
+
+
+PHASE 3 - Verification functions
+================================
+
+Task 3.1 - Norm check
+---------------------
+For a state |psi>:
+
+sum_i |psi_i|^2 = 1
+
+Report:
+norm
+norm error = |norm - 1|
+
+Task 3.2 - State-vector difference
+-----------------------------------
+For two states psi and phi:
+
+error = ||psi - phi||_2
+
+Use this when both states are explicitly available.
+
+Task 3.3 - Fidelity
+--------------------
+For pure states:
+
+F = |<psi|phi>|^2
+
+Expected value:
+F approximately 1
+
+for equivalent implementations.
+
+Task 3.4 - QFT/IQFT reversibility
+----------------------------------
+Input:
+|psi>
+
+Run:
+QFT(|psi>) -> IQFT
+
+Check:
+output approximately equals input.
+
+This is the most important first verification test.
+
+
+PHASE 4 - Quimb implementation
+===============================
+
+Task 4.1 - Build a small Quimb state
+-------------------------------------
+Start with N=3 or N=4.
+
+Represent the state as a tensor network / MPS.
+
+Task 4.2 - Apply QFT gates
+--------------------------
+Implement the same gate sequence used by CUDA-Q:
+- H
+- controlled phase rotations
+- optional swaps
+
+Task 4.3 - Apply IQFT
+---------------------
+Implement the inverse sequence:
+- inverse swaps
+- inverse controlled rotations
+- H
+
+Task 4.4 - Compare with CUDA-Q
+------------------------------
+For N=3, 4, 8:
+Compare:
+- norm
+- state-vector difference
+- fidelity
+- measurement probabilities
+
+Expected:
+very small numerical error
+fidelity approximately 1.
+
+
+PHASE 5 - CUDA-Q TensorNet / MPS
+================================
+
+Task 5.1 - Run the same QFT circuit with CUDA-Q TensorNet
+----------------------------------------------------------
+Use the tensor-network backend available in the installed CUDA-Q version.
+
+Task 5.2 - Run QFT -> IQFT
+--------------------------
+Use the same input state as the exact reference.
+
+Task 5.3 - Check normalization
+------------------------------
+Verify norm approximately 1.
+
+Task 5.4 - Check reversibility
+-----------------------------
+Verify:
+IQFT(QFT(|psi>)) approximately |psi>
+
+Task 5.5 - Compare small systems
+--------------------------------
+For N <= the practical exact state-vector limit:
+
+CUDA-Q state vector
+        vs
+CUDA-Q TensorNet/MPS
+
+Compare:
+- fidelity
+- L2 error
+- norm error
+
+
+PHASE 6 - First scaling experiment
+==================================
+
+Run the same logical experiment at:
+
+N = 8
+N = 16
+N = 25
+N = 50
+N = 75
+N = 100
+
+For each N record:
+
+1. Number of qubits
+2. Circuit gate count
+3. QFT runtime
+4. IQFT runtime
+5. Total runtime
+6. Peak memory
+7. Tensor count
+8. Maximum tensor dimension
+9. Maximum MPS bond dimension, if applicable
+10. State norm
+11. Fidelity, where an exact reference exists
+12. Numerical error
+
+
+PHASE 7 - 25-qubit validation point
+====================================
+
+This is an important checkpoint.
+
+Run:
+
+25-qubit CUDA-Q state vector
+             vs
+25-qubit CUDA-Q TensorNet/MPS
+             vs
+25-qubit Quimb TN
+
+Compare all available results.
+
+Expected:
+All implementations should agree within numerical tolerance.
+
+If they do not agree:
+STOP scaling and debug qubit ordering, controlled-phase angle,
+swap convention, normalization, or tensor contraction.
+
+
+PHASE 8 - 50 and 100 qubits
+============================
+
+Task 8.1 - 50 qubits
+--------------------
+Run QFT -> IQFT using tensor-network simulation.
+
+Record:
+- runtime
+- memory
+- tensor/bond dimensions
+- norm
+- final-state verification method
+
+Task 8.2 - 75 qubits
+--------------------
+Repeat.
+
+Task 8.3 - 100 qubits
+---------------------
+Repeat.
+
+Important:
+Do not attempt to create a full 2^100 state vector.
+
+At 100 qubits the experiment is specifically testing whether the tensor
+representation and contraction remain computationally manageable.
+
+
+PHASE 9 - Study tensor-network growth
+=====================================
+
+This phase is as important as simply getting a result.
+
+For each N, plot or record:
+
+N
+|
++-- runtime
++-- memory
++-- maximum bond dimension
++-- tensor sizes
++-- contraction cost
++-- accuracy
+
+Question to answer:
+
+Does the tensor-network representation remain manageable as N increases?
+
+If bond dimensions grow very rapidly, the tensor network may lose its
+compression advantage for this circuit/state.
+
+
+PHASE 10 - Test different input states
+======================================
+
+Do not test only |000...0>.
+
+Test:
+
+A. Basis state
+   |000...001>
+
+B. Different basis states
+   Random computational-basis states
+
+C. Product-state superpositions
+   H applied to selected qubits
+
+D. Entangled states
+   Bell pairs / GHZ-type states
+
+E. Random states
+   Only at sizes where a reference representation is practical.
+
+For each input:
+QFT -> IQFT
+and verify that the input is recovered.
+
+
+PHASE 11 - QFT-only verification
+================================
+
+QFT -> output state
+
+For small N, compare against the mathematical definition:
+
+QFT|x> =
+(1/sqrt(2^N)) sum_y exp(2*pi*i*x*y/2^N) |y>
+
+This verifies that the implementation is actually performing the correct
+Fourier transform, rather than only checking that QFT and IQFT happen to
+cancel each other.
+
+
+PHASE 12 - IQFT-only verification
+=================================
+
+Similarly verify:
+
+IQFT|y> =
+(1/sqrt(2^N)) sum_x exp(-2*pi*i*x*y/2^N) |x>
+
+Compare the circuit output with the mathematical result for small N.
+
+
+PHASE 13 - Benchmark three approaches
+======================================
+
+Approach A:
+CUDA-Q state vector
+
+Use for:
+- exact reference
+- small N
+- correctness
+
+Approach B:
+CUDA-Q TensorNet / MPS
+
+Use for:
+- GPU-accelerated tensor-network experiments
+- larger N
+- scaling
+
+Approach C:
+Quimb
+
+Use for:
+- independent tensor-network implementation
+- inspection/manipulation of tensors
+- validation and experimentation
+
+Recommended relationship:
+
+CUDA-Q state vector
+       |
+       | exact reference
+       v
+Verification
+       ^
+       |
+Quimb <----> CUDA-Q TensorNet/MPS
+
+
+PHASE 14 - 200+ qubits
+======================
+
+Only start this after 100 qubits has been measured.
+
+Try:
+
+100
+200
+500
+1000
+2000
+
+Do not assume success.
+
+At each point ask:
+- Does memory remain manageable?
+- Does runtime remain manageable?
+- How does bond dimension grow?
+- Does contraction become the bottleneck?
+- Is the result exact or approximate?
+- What accuracy is maintained?
+
+
+PHASE 15 - Shor integration
+===========================
+
+Only after QFT/IQFT is validated.
+
+Shor structure:
+
+Classical:
+Choose N, a
+      |
+      v
+Quantum:
+|0> -> Hadamards -> modular exponentiation
+      |
+      v
+      QFT / IQFT
+      |
+      v
+Measurement
+      |
+      v
+Classical continued fractions
+      |
+      v
+Factors
+
+The QFT/IQFT tensor-network implementation becomes a component of the
+larger Shor experiment.
+
+Do NOT start with a 2000-qubit Shor circuit.
+
+
+FINAL SUCCESS CRITERIA
+======================
+
+Minimum success:
+- 3/4/8-qubit exact QFT/IQFT verified.
+- Quimb agrees with CUDA-Q state vector.
+- CUDA-Q TensorNet/MPS agrees with the exact reference at small N.
+- 25-qubit three-way comparison completed.
+- 50 and 100 qubit tensor-network experiments completed or their
+  computational limits documented.
+- Runtime, memory, tensor dimensions and bond dimensions recorded.
+
+Strong success:
+- 100+ qubit QFT/IQFT runs successfully.
+- Accuracy remains controlled.
+- Scaling behavior is measured.
+- The implementation can be extended to larger N.
+
+Research-level result:
+- Identify the practical N limit on the available hardware.
+- Explain why the limit occurs.
+- Compare MPS vs general TensorNet vs Quimb.
+- Determine whether QFT structure can be exploited for further optimization.
+- Use the validated QFT component in a larger Shor experiment.
+
+
+FIRST 10 TASKS TO DO NOW
+========================
+
+1. Check CUDA-Q version.
+2. Check available CUDA-Q simulator backends.
+3. Create the project directory structure.
+4. Implement 3-qubit QFT.
+5. Implement 3-qubit IQFT.
+6. Verify QFT -> IQFT using CUDA-Q state vector.
+7. Implement the same circuit in Quimb.
+8. Compare CUDA-Q vs Quimb at 3/4/8 qubits.
+9. Run CUDA-Q TensorNet/MPS at the same sizes.
+10. Build an automated verification script before moving to 25 qubits.
+
+Rule:
+Do not move to the next scale when the previous scale has an unexplained
+verification error.
+"""
+path = Path("qft_iqft_task_by_task_plan.txt")
+path.write_text(text, encoding="utf-8")
+print(path)
