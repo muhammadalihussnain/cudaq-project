@@ -371,12 +371,12 @@ function renderBoard() {
               : `${gate.gate} on q${qubit} — click to remove, drag to move`;
 
         inner = `<button
-          class="placed-gate${isRot ? ' rotation' : ''}${is3Q ? ' toffoli' : ''}${isMeasure ? ' measure-gate' : ''}"
+          class="placed-gate${isRot ? ' rotation' : ''}${is3Q ? ' toffoli' : ''}${is2Q ? ' controlled' : ''}${isMeasure ? ' measure-gate' : ''}"
           draggable="true"
           data-gate-id="${gate.id}"
           data-gate-name="${gate.gate}"
           title="${tipText}"
-        >${isMeasure ? '<tspan>&#9646;</tspan>M' : gate.gate}</button>`;
+        >${isMeasure ? '<tspan>&#9646;</tspan>M' : is2Q || is3Q ? `<span class="ctrl-pip">&#9679;</span>${gate.gate}` : gate.gate}</button>`;
 
       } else if (ctrl2For) {
         // ── Second control dot (Toffoli ctrl2) ─────────────────────────────
