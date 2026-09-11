@@ -81,6 +81,33 @@
         </p>
 
         <div class="gate-palette" id="gatePalette" aria-label="Gate palette"></div>
+
+        <!-- ── BULK APPLY AUTOMATION ──────────────────────────────────── -->
+        <div class="bulk-panel">
+          <p class="eyebrow" style="margin-bottom:6px">BULK APPLY</p>
+          <div class="bulk-row">
+            <label class="bulk-label" for="bulkGate">Gate</label>
+            <select id="bulkGate" class="bulk-select"></select>
+          </div>
+          <div class="bulk-row">
+            <label class="bulk-label" for="bulkFrom">From q</label>
+            <input id="bulkFrom" type="number" class="bulk-input" min="0" max="28" value="0">
+          </div>
+          <div class="bulk-row">
+            <label class="bulk-label" for="bulkTo">To q</label>
+            <input id="bulkTo"   type="number" class="bulk-input" min="0" max="28" value="2">
+          </div>
+          <div class="bulk-row">
+            <label class="bulk-label" for="bulkCol">Column</label>
+            <select id="bulkCol" class="bulk-select">
+              <option value="first-empty">First empty per qubit</option>
+              <option value="same">Same column (pack)</option>
+            </select>
+          </div>
+          <button class="bulk-apply-btn" id="bulkApplyBtn">⚡ Apply to all</button>
+          <p class="field-hint" style="margin-top:6px">Applies the chosen gate to every qubit in the range at once.</p>
+        </div>
+
         <p class="drag-hint">Or drag a gate directly onto any circuit slot.</p>
       </aside>
 

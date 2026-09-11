@@ -50,6 +50,7 @@ let selectedBackend = 'qpp-cpu';
 let circuit         = [];
 let qubitStates     = ['0', '0', '0'];
 let activeQubit     = null;
+let stickyGate      = null;   // Feature 3: name of the currently sticky-selected gate
 let undoStack       = [];
 let redoStack       = [];
 
@@ -102,6 +103,11 @@ const el = {
   zoomReset:          $('zoomReset'),
   circuitBoardScaler: $('circuitBoardScaler'),
   resourceStats:      $('resourceStats'),
+  bulkGate:           $('bulkGate'),
+  bulkFrom:           $('bulkFrom'),
+  bulkTo:             $('bulkTo'),
+  bulkCol:            $('bulkCol'),
+  bulkApplyBtn:       $('bulkApplyBtn'),
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -257,6 +263,20 @@ el.helpModal.addEventListener('click', e => { if (e.target === el.helpModal) clo
 // ACTIVE QUBIT SELECTION
 // ═════════════════════════════════════════════════════════════════════════════
 function setActiveQubit(idx) {
+  // If a sticky gate is selected, clicking a qubit row places it immediately
+  if (stickyGate !== null) {
+    snapshot();
+    addGate(stickyGate, undefined, idx);
+    // Keep qubit selected and gate sticky so user can keep clicking other qubits
+    activeQubit = idx;
+    renderStateButtonHighlights();
+    document.querySelectorAll('.wire-row').forEach((row, i) =>
+      row.classList.toggle('is-active-row', i === activeQubit));
+    document.querySelectorAll('.qubit-label').forEach((lbl, i) =>
+      lbl.classList.toggle('is-active-row', i === activeQubit));
+    updateActiveQubitHint();
+    return;
+  }
   activeQubit = (activeQubit === idx) ? null : idx;
   updateActiveQubitHint();
   renderStateButtonHighlights();
@@ -265,13 +285,20 @@ function setActiveQubit(idx) {
   document.querySelectorAll('.qubit-label').forEach((lbl, i) =>
     lbl.classList.toggle('is-active-row', i === activeQubit));
 }
+
 function updateActiveQubitHint() {
-  if (activeQubit === null) {
+  if (stickyGate !== null && activeQubit !== null) {
+    el.activeQubitHint.textContent = `${stickyGate} selected — clicking any qubit row places it there. Click ${stickyGate} again in palette to deselect.`;
+    el.activeQubitHint.classList.add('has-selection');
+  } else if (stickyGate !== null) {
+    el.activeQubitHint.textContent = `${stickyGate} selected — now click a qubit row to place it. Click ${stickyGate} again to deselect.`;
+    el.activeQubitHint.classList.add('has-selection');
+  } else if (activeQubit !== null) {
+    el.activeQubitHint.textContent = `q${activeQubit} selected — click any gate in the palette to place it.`;
+    el.activeQubitHint.classList.add('has-selection');
+  } else {
     el.activeQubitHint.textContent = 'Click a qubit row to select it, then click a gate to place it there.';
     el.activeQubitHint.classList.remove('has-selection');
-  } else {
-    el.activeQubitHint.textContent = `q${activeQubit} selected — click any gate to place it on q${activeQubit}.`;
-    el.activeQubitHint.classList.add('has-selection');
   }
 }
 function renderStateButtonHighlights() {
@@ -280,11 +307,30 @@ function renderStateButtonHighlights() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// STICKY GATE SELECTION helpers
+// ═════════════════════════════════════════════════════════════════════════════
+function setStickyGate(name) {
+  stickyGate = name;
+  // Update palette tile highlights
+  document.querySelectorAll('.gate-tile').forEach(t =>
+    t.classList.toggle('gate-tile--sticky', t.dataset.gate === name));
+  // Update the hint text to reflect the sticky state
+  updateActiveQubitHint();
+}
+
+function clearStickyGate() {
+  stickyGate = null;
+  document.querySelectorAll('.gate-tile').forEach(t =>
+    t.classList.remove('gate-tile--sticky'));
+  updateActiveQubitHint();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // GATE PALETTE
 // ═════════════════════════════════════════════════════════════════════════════
 function renderPalette() {
   el.gatePalette.innerHTML = Object.entries(GATE_META).map(([name, meta]) =>
-    `<button class="gate-tile${THREE_QUBIT.has(name) ? ' gate-tile--3q' : ''}"
+    `<button class="gate-tile${THREE_QUBIT.has(name) ? ' gate-tile--3q' : ''}${stickyGate === name ? ' gate-tile--sticky' : ''}"
              draggable="true" data-gate="${name}" aria-label="${meta.label}">
       <strong>${name}</strong><small>${meta.label}</small>
     </button>`
@@ -292,20 +338,28 @@ function renderPalette() {
 
   el.gatePalette.querySelectorAll('.gate-tile').forEach(tile => {
     const name = tile.dataset.gate;
+
     tile.addEventListener('dragstart', e => {
       e.dataTransfer.setData('text/plain', name);
       e.dataTransfer.setData('x-source', 'palette');
     });
+
+    // Click: toggle sticky selection for this gate
     tile.addEventListener('click', () => {
-      if (activeQubit === null) {
-        el.activeQubitHint.style.color = 'var(--amber)';
-        el.activeQubitHint.textContent = '⬆ First click a qubit row above to select it.';
-        setTimeout(() => updateActiveQubitHint(), 2200);
+      if (stickyGate === name) {
+        // Re-clicking the same tile deselects it
+        clearStickyGate();
         return;
       }
-      snapshot();
-      addGate(name, undefined, activeQubit);
+      setStickyGate(name);
+
+      // If a qubit is already selected, place immediately
+      if (activeQubit !== null) {
+        snapshot();
+        addGate(name, undefined, activeQubit);
+      }
     });
+
     tile.addEventListener('mouseenter', () => { tooltipTimer = setTimeout(() => showTooltip(tile, name), 420); });
     tile.addEventListener('mouseleave', hideTooltip);
   });
@@ -627,8 +681,16 @@ function addGate(name, column, target) {
   const needs3Q = THREE_QUBIT.has(name);
   const needs2Q = TWO_QUBIT.has(name);
 
-  if (column === undefined) column = circuit.length ? Math.max(...circuit.map(g => g.column)) + 1 : 0;
   if (target === undefined) target = 0;
+
+  // If no column specified, find the FIRST empty column on this qubit row
+  // rather than appending after ALL gates in the circuit.
+  if (column === undefined) {
+    const occupied = new Set(circuit.filter(g => g.target === target).map(g => g.column));
+    let col = 0;
+    while (occupied.has(col)) col++;
+    column = col;
+  }
 
   if (needs3Q && total < 3) { alert('Toffoli (CCX) needs at least 3 qubits.'); return; }
   if (needs2Q && total < 2) { alert('This gate needs at least 2 qubits.'); return; }
@@ -652,8 +714,90 @@ function addGate(name, column, target) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// META & PAYLOAD
+// BULK APPLY AUTOMATION
+// Applies a gate to every qubit in [fromQ, toQ] in one action.
+// Mode "first-empty": each qubit gets its own first empty column (independent).
+// Mode "same":        all qubits get the same column (the next free column
+//                     that has no gate on ANY qubit in the range).
 // ═════════════════════════════════════════════════════════════════════════════
+function populateBulkGateSelect() {
+  // Only single-qubit gates make sense for bulk apply
+  const singleQubit = Object.keys(GATE_META).filter(n => !MULTI_QUBIT.has(n) && n !== 'MEASURE');
+  el.bulkGate.innerHTML = singleQubit.map(n =>
+    `<option value="${n}"${n === 'H' ? ' selected' : ''}>${n} — ${GATE_META[n].label}</option>`
+  ).join('');
+}
+
+function applyBulk() {
+  const total   = Number(el.qubitCount.value);
+  const gateName = el.bulkGate.value;
+  let   fromQ    = Math.max(0, Math.min(total - 1, Number(el.bulkFrom.value)));
+  let   toQ      = Math.max(0, Math.min(total - 1, Number(el.bulkTo.value)));
+  if (fromQ > toQ) [fromQ, toQ] = [toQ, fromQ];   // swap if user entered reversed range
+
+  const mode = el.bulkCol.value;  // 'first-empty' | 'same'
+  const qubits = Array.from({ length: toQ - fromQ + 1 }, (_, i) => fromQ + i);
+
+  snapshot();
+
+  if (mode === 'first-empty') {
+    // Each qubit independently finds its own first free column
+    qubits.forEach(q => {
+      const occupied = new Set(circuit.filter(g => g.target === q).map(g => g.column));
+      let col = 0;
+      while (occupied.has(col)) col++;
+      circuit.push({
+        id:       Date.now() + Math.random(),
+        gate:     gateName,
+        column:   col,
+        target:   q,
+        control:  -1,
+        control2: -1,
+        angle:    ROTATION.has(gateName) ? Math.PI / 2 : 0,
+      });
+    });
+  } else {
+    // 'same' mode: find one column that is free for ALL qubits in the range
+    let col = 0;
+    while (true) {
+      const blocked = circuit.some(g => g.column === col && g.target >= fromQ && g.target <= toQ);
+      if (!blocked) break;
+      col++;
+    }
+    qubits.forEach(q => {
+      circuit.push({
+        id:       Date.now() + Math.random(),
+        gate:     gateName,
+        column:   col,
+        target:   q,
+        control:  -1,
+        control2: -1,
+        angle:    ROTATION.has(gateName) ? Math.PI / 2 : 0,
+      });
+    });
+  }
+
+  renderBoard(); updateMeta();
+
+  // Visual feedback on the button
+  el.bulkApplyBtn.textContent = `✓ Applied ${gateName} to q${fromQ}–q${toQ}`;
+  el.bulkApplyBtn.style.background = 'var(--green)';
+  setTimeout(() => {
+    el.bulkApplyBtn.textContent = '⚡ Apply to all';
+    el.bulkApplyBtn.style.background = '';
+  }, 1800);
+}
+
+// Keep bulkTo max in sync with qubit count
+function syncBulkRange() {
+  const max = Number(el.qubitCount.value) - 1;
+  el.bulkFrom.max = max;
+  el.bulkTo.max   = max;
+  if (Number(el.bulkTo.value) > max) el.bulkTo.value = max;
+  if (Number(el.bulkFrom.value) > max) el.bulkFrom.value = max;
+}
+
+
 
 // Maximum qubit count for which we still compute the live symbolic formula.
 // Above this threshold the 2^n state vector is too large to evaluate in the
@@ -1200,6 +1344,7 @@ el.qubitCount.addEventListener('change', e => {
     (g.control2 == null || g.control2 < 0 || g.control2 < val)
   );
   if (activeQubit!==null && activeQubit>=val) activeQubit=null;
+  syncBulkRange();
   renderStates(); renderBoard(); updateMeta(); updateActiveQubitHint();
 });
 
@@ -1219,7 +1364,7 @@ document.querySelectorAll('.target-option').forEach(btn=>
 el.clearButton.addEventListener('click',()=>{
   snapshot();
   circuit=[]; qubitStates=Array.from({length:Number(el.qubitCount.value)},()=>'0');
-  activeQubit=null;
+  activeQubit=null; clearStickyGate();
   renderStates(); renderBoard(); updateMeta(); updateActiveQubitHint();
   el.resultEmpty.classList.remove('hidden');
   el.resultView.classList.add('hidden');
@@ -1242,7 +1387,7 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey||e.metaKey)&&(e.key==='='||e.key==='+'||e.key==='+'))           { e.preventDefault(); doZoomIn();    return; }
   if ((e.ctrlKey||e.metaKey)&&(e.key==='-'||e.key==='_'))                        { e.preventDefault(); doZoomOut();   return; }
   if ((e.ctrlKey||e.metaKey)&&e.key==='0')                                        { e.preventDefault(); doZoomReset(); return; }
-  if (e.key==='Escape')   { closeHelp(); activeQubit=null; updateActiveQubitHint(); renderStateButtonHighlights(); return; }
+  if (e.key==='Escape')   { closeHelp(); activeQubit=null; clearStickyGate(); updateActiveQubitHint(); renderStateButtonHighlights(); return; }
   if (e.key==='F1'||(!typing&&e.key==='?')) { e.preventDefault(); openHelp(); return; }
   if (!typing&&e.key==='Enter') { e.preventDefault(); runCircuit(); return; }});
 
@@ -1253,7 +1398,9 @@ function updateClock() {
 updateClock(); setInterval(updateClock, 30_000);
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-renderPalette(); renderStates(); renderBoard(); updateMeta(); syncUndoButtons(); updateActiveQubitHint();
+renderPalette(); populateBulkGateSelect(); syncBulkRange();
+el.bulkApplyBtn.addEventListener('click', applyBulk);
+renderStates(); renderBoard(); updateMeta(); syncUndoButtons(); updateActiveQubitHint();
 applyZoom(zoomIdx);  // run after drawConnectors is defined
 
 }); // end DOMContentLoaded

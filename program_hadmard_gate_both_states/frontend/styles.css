@@ -345,8 +345,68 @@ select {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(85,214,194,.2);
 }
-.gate-tile strong { font: 600 16px 'DM Mono', monospace; }  /* was 15px */
-.gate-tile small  { color: var(--muted); font-size: 10px; margin-top: 3px; } /* was 8px */
+.gate-tile strong { font: 600 16px 'DM Mono', monospace; }
+.gate-tile small  { color: var(--muted); font-size: 10px; margin-top: 3px; }
+
+/* Sticky-selected gate — stays highlighted until re-clicked */
+.gate-tile--sticky {
+  border-color: var(--cyan) !important;
+  background: #0d2e28 !important;
+  box-shadow: 0 0 0 2px var(--cyan), 0 4px 16px rgba(85,214,194,.35) !important;
+  transform: translateY(-2px);
+}
+.gate-tile--sticky strong { color: var(--cyan); }
+
+/* ── BULK APPLY PANEL ────────────────────────────────────────────────────── */
+.bulk-panel {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.bulk-row {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.bulk-label {
+  font: 700 12px 'DM Mono', monospace;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+
+.bulk-select,
+.bulk-input {
+  background: var(--panel);
+  color: var(--white);
+  border: 1px solid var(--line);
+  padding: 5px 8px;
+  font: 13px 'DM Mono', monospace;
+  width: 100%;
+  outline: 0;
+}
+.bulk-select:focus,
+.bulk-input:focus  { border-color: var(--cyan); }
+
+.bulk-apply-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px;
+  background: var(--cyan);
+  color: var(--ink);
+  border: 0;
+  font: 700 13px 'DM Mono', monospace;
+  cursor: pointer;
+  letter-spacing: .5px;
+  transition: background .2s, color .2s, transform .1s;
+}
+.bulk-apply-btn:hover  { background: var(--white); transform: translateY(-1px); }
+.bulk-apply-btn:active { transform: translateY(0); }
 
 /* ── CIRCUIT PANEL ───────────────────────────────────────────────────────── */
 .circuit-panel {
