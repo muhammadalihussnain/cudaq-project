@@ -124,7 +124,7 @@ el.themeToggle.addEventListener('click', toggleTheme);
 // ZOOM
 // ═════════════════════════════════════════════════════════════════════════════
 const ZOOM_STEPS  = [0.5, 0.625, 0.75, 0.875, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
-const ZOOM_DEFAULT_IDX = 4;  // index of 1.0
+const ZOOM_DEFAULT_IDX = 6;  // index of 1.5  (150% — default for readability)
 let zoomIdx = ZOOM_DEFAULT_IDX;
 try {
   const saved = Number(localStorage.getItem('cudaq-zoom-idx'));
@@ -144,7 +144,7 @@ function applyZoom(idx) {
 
   const pct = Math.round(scale * 100);
   el.zoomReset.textContent = `${pct}%`;
-  el.zoomReset.title       = `Reset zoom to 100% (Ctrl+0)  —  current: ${pct}%`;
+  el.zoomReset.title       = `Reset zoom to 150% (Ctrl+0)  —  current: ${pct}%`;
   el.zoomIn.disabled  = zoomIdx >= ZOOM_STEPS.length - 1;
   el.zoomOut.disabled = zoomIdx <= 0;
   try { localStorage.setItem('cudaq-zoom-idx', zoomIdx); } catch (_) {}
