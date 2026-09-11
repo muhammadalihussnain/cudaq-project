@@ -108,6 +108,8 @@ const el = {
   bulkTo:             $('bulkTo'),
   bulkCol:            $('bulkCol'),
   bulkApplyBtn:       $('bulkApplyBtn'),
+  sidebarResizer:     $('sidebarResizer'),
+  resultsResizer:     $('resultsResizer'),
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -176,14 +178,15 @@ document.querySelector('.circuit-scroll')?.addEventListener('wheel', e => {
 // so that drawConnectors is defined before it runs.
 
 // ═════════════════════════════════════════════════════════════════════════════
-// PANEL COLLAPSE
+// PANEL COLLAPSE + RESIZE
 // ═════════════════════════════════════════════════════════════════════════════
-const SIDEBAR_W = 260, RESULTS_W = 260;
+let sidebarW  = 260;
+let resultsW  = 260;
 let sidebarOpen = true, resultsOpen = true;
 
 function updateWorkspaceLayout() {
-  const lw = sidebarOpen ? SIDEBAR_W : 0;
-  const rw = resultsOpen ? RESULTS_W : 0;
+  const lw = sidebarOpen ? sidebarW : 0;
+  const rw = resultsOpen ? resultsW : 0;
   el.workspace.style.gridTemplateColumns = `${lw}px minmax(0,1fr) ${rw}px`;
   el.sidebarToggle.style.left       = lw + 'px';
   el.resultsPanelToggle.style.right = rw + 'px';
@@ -200,6 +203,45 @@ function toggleResultsPanel() { resultsOpen = !resultsOpen; updateWorkspaceLayou
 el.sidebarToggle.addEventListener('click', toggleSidebar);
 el.resultsPanelToggle.addEventListener('click', toggleResultsPanel);
 updateWorkspaceLayout();
+
+// ── Sidebar resize drag ───────────────────────────────────────────────────────
+function makeResizable(resizerEl, getSide, setWidth, minW, maxW) {
+  resizerEl.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = getSide();
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    function onMove(mv) {
+      const delta = mv.clientX - startX;
+      const newW  = Math.min(maxW, Math.max(minW, startW + delta));
+      setWidth(newW);
+      updateWorkspaceLayout();
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
+}
+
+makeResizable(
+  el.sidebarResizer,
+  () => sidebarW,
+  w  => { sidebarW = w; },
+  160, 480
+);
+makeResizable(
+  el.resultsResizer,
+  () => resultsW,
+  w  => { resultsW = w; },
+  160, 560
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // UNDO / REDO
@@ -430,7 +472,7 @@ function renderBoard() {
           data-gate-id="${gate.id}"
           data-gate-name="${gate.gate}"
           title="${tipText}"
-        >${isMeasure ? '<tspan>&#9646;</tspan>M' : is2Q || is3Q ? `<span class="ctrl-pip">&#9679;</span>${gate.gate}` : gate.gate}</button>`;
+        >${isMeasure ? '<tspan>&#9646;</tspan>M' : is2Q || is3Q ? `<span class="ctrl-pip">&#9679;</span>${gate.gate}` : gate.gate}<span class="gate-span-handle" title="Drag to span across qubits">&#9660;</span></button>`;
 
       } else if (ctrl2For) {
         // ── Second control dot (Toffoli ctrl2) ─────────────────────────────
@@ -472,6 +514,19 @@ function renderBoard() {
   el.circuitBoard.querySelectorAll('.slot').forEach(slot => {
     slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drop-active'); });
     slot.addEventListener('dragleave', () => slot.classList.remove('drop-active'));
+
+    // ── Sticky-gate click placement ─────────────────────────────────────────
+    // Clicking any slot (empty or not) while a gate is sticky places it there.
+    slot.addEventListener('click', e => {
+      if (!stickyGate) return;
+      // Don't fire if the click was on a placed gate or control dot inside the slot
+      if (e.target.closest('[data-gate-id]') || e.target.closest('[data-ctrl-gate-id]')) return;
+      const col   = Number(slot.dataset.column);
+      const qubit = Number(slot.dataset.qubit);
+      snapshot();
+      addGate(stickyGate, col, qubit);
+    });
+
     slot.addEventListener('drop', e => {
       e.preventDefault();
       slot.classList.remove('drop-active');
@@ -548,6 +603,7 @@ function renderBoard() {
     const name = btn.dataset.gateName;
 
     btn.addEventListener('dragstart', e => {
+      if (e.target.classList.contains('gate-span-handle')) { e.preventDefault(); return; }
       e.dataTransfer.setData('x-source',  'placed-gate');
       e.dataTransfer.setData('x-gate-id', String(id));
       e.dataTransfer.setData('text/plain', name);
@@ -555,9 +611,10 @@ function renderBoard() {
     });
     btn.addEventListener('dragend', () => btn.classList.remove('dragging'));
 
-    // click → remove
+    // click → remove  (skip if sticky gate active — slot handler covers it)
     btn.addEventListener('click', e => {
       e.stopPropagation();
+      if (stickyGate) return;
       snapshot();
       circuit = circuit.filter(g => g.id !== id);
       renderBoard(); updateMeta();
@@ -566,6 +623,7 @@ function renderBoard() {
     // double-click → cycle primary control for 2-qubit gates
     btn.addEventListener('dblclick', e => {
       e.preventDefault();
+      if (stickyGate) return;
       const g = circuit.find(item => item.id === id);
       if (!g || !MULTI_QUBIT.has(g.gate)) return;
       snapshot();
@@ -577,6 +635,83 @@ function renderBoard() {
 
     btn.addEventListener('mouseenter', () => { tooltipTimer = setTimeout(() => showTooltip(btn, name), 360); });
     btn.addEventListener('mouseleave', hideTooltip);
+
+    // ── Span-drag handle ─────────────────────────────────────────────────────
+    const handle = btn.querySelector('.gate-span-handle');
+    if (handle) {
+      handle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const g = circuit.find(item => item.id === id);
+        if (!g) return;
+
+        const startQubit = g.target;
+        const col        = g.column;
+        btn.classList.add('spanning');
+
+        // Floating ghost label that follows the cursor
+        const ghost = document.createElement('div');
+        ghost.className = 'span-ghost';
+        ghost.textContent = `${g.gate} → q${startQubit}`;
+        document.body.appendChild(ghost);
+
+        let lastEndQubit = startQubit;
+
+        function onMove(mv) {
+          ghost.style.left = (mv.clientX + 14) + 'px';
+          ghost.style.top  = (mv.clientY + 8)  + 'px';
+
+          // Determine which qubit row the cursor is over
+          let endQubit = startQubit;
+          el.circuitBoard.querySelectorAll('.wire-row').forEach((row, idx) => {
+            const r = row.getBoundingClientRect();
+            if (mv.clientY >= r.top && mv.clientY <= r.bottom) endQubit = idx;
+          });
+          lastEndQubit = endQubit;
+
+          const lo = Math.min(startQubit, endQubit);
+          const hi = Math.max(startQubit, endQubit);
+          ghost.textContent = `${g.gate} → q${lo} – q${hi}  (${hi - lo + 1} qubits)`;
+
+          // Highlight covered rows
+          el.circuitBoard.querySelectorAll('.wire-row').forEach((row, idx) =>
+            row.classList.toggle('span-preview', idx >= lo && idx <= hi));
+        }
+
+        function onUp() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup',   onUp);
+          ghost.remove();
+          btn.classList.remove('spanning');
+          el.circuitBoard.querySelectorAll('.wire-row').forEach(r => r.classList.remove('span-preview'));
+
+          const endQubit = lastEndQubit;
+          if (endQubit === startQubit) return;   // no real span
+
+          const lo = Math.min(startQubit, endQubit);
+          const hi = Math.max(startQubit, endQubit);
+
+          snapshot();
+          for (let q = lo; q <= hi; q++) {
+            if (q === startQubit) continue;  // original gate stays untouched
+            circuit = circuit.filter(item => !(item.column === col && item.target === q));
+            circuit.push({
+              id:       Date.now() + Math.random(),
+              gate:     g.gate,
+              column:   col,
+              target:   q,
+              control:  -1,
+              control2: -1,
+              angle:    g.angle,
+            });
+          }
+          renderBoard(); updateMeta();
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup',   onUp);
+      });
+    }
   });
 
   // ── Control dot drag events ─────────────────────────────────────────────────

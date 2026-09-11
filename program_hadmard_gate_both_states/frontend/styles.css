@@ -198,29 +198,43 @@ h1, h2, p { margin: 0; }
   transition: background .3s;
 }
 
-.sidebar       { border-right: 1px solid var(--line); }
-.results-panel { border-left:  1px solid var(--line); }
+.sidebar       { border-right: 1px solid var(--line); position: relative; }
+.results-panel { border-left:  1px solid var(--line); position: relative; }
 
-/* inner wrapper so content fades when panel collapses */
-.sidebar > *, .results-panel > * {
-  transition: opacity .2s;
+/* inner wrapper — scrollable content, resizer sits outside it */
+.sidebar-inner {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px 24px;
+  box-sizing: border-box;
 }
 
-.sidebar.is-collapsed,
-.results-panel.is-collapsed {
-  overflow: hidden;   /* clip content as width → 0 */
-  padding: 0 !important;
-}
+/* Remove old direct padding (now on .sidebar-inner) */
+.sidebar.is-collapsed .sidebar-inner,
+.results-panel.is-collapsed .sidebar-inner { opacity: 0; pointer-events: none; }
 
-.sidebar.is-collapsed > *,
-.results-panel.is-collapsed > * {
-  opacity: 0;
-  pointer-events: none;
+/* ── RESIZE HANDLES ──────────────────────────────────────────────────────── */
+.sidebar-resizer,
+.results-resizer {
+  position: absolute;
+  top: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 20;
+  background: transparent;
+  transition: background .15s;
 }
-
-/* padding lives on direct children so it doesn't fight overflow:hidden */
-.sidebar       { padding: 28px 24px; }
-.results-panel { padding: 28px 24px; }
+.sidebar-resizer  { right: 0; }
+.results-resizer  { left:  0; }
+.sidebar-resizer:hover,
+.results-resizer:hover,
+.sidebar-resizer:active,
+.results-resizer:active {
+  background: var(--cyan);
+  opacity: .5;
+}
 
 /* ── PANEL HEADINGS ──────────────────────────────────────────────────────── */
 .panel-heading {
@@ -579,8 +593,9 @@ select {
   box-shadow: 3px 3px 0 rgba(0,0,0,.3);
   transition: transform .1s, box-shadow .1s, opacity .1s;
   user-select: none;
-  position: relative;
+  position: relative;   /* needed for .gate-span-handle absolute positioning */
   z-index: 3;
+  overflow: visible;
 }
 .placed-gate:hover   { transform: scale(1.1); box-shadow: 4px 4px 0 rgba(0,0,0,.4); }
 .placed-gate:active  { cursor: grabbing; }
@@ -611,6 +626,50 @@ select {
   color: var(--amber);
   line-height: 1;
   display: block;
+}
+
+/* ── GATE SPAN HANDLE ────────────────────────────────────────────────────── */
+/* Small downward-arrow in the bottom-right corner of every placed gate.      */
+/* Mousedown + drag spans the gate across qubits.                             */
+.gate-span-handle {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-size: 8px;
+  color: var(--amber);
+  opacity: 0;
+  line-height: 1;
+  cursor: ns-resize;
+  transition: opacity .15s;
+  pointer-events: auto;   /* must be separate from the gate's drag */
+  user-select: none;
+}
+.placed-gate:hover .gate-span-handle,
+.placed-gate.spanning .gate-span-handle { opacity: 1; }
+.placed-gate.spanning {
+  box-shadow: 0 0 0 2px var(--amber), 0 4px 16px rgba(244,184,96,.5);
+  z-index: 20;
+}
+
+/* ── SPAN GHOST (cursor-following label during span drag) ───────────────── */
+.span-ghost {
+  position: fixed;
+  pointer-events: none;
+  background: var(--amber);
+  color: var(--ink);
+  font: 700 12px 'DM Mono', monospace;
+  padding: 4px 10px;
+  border-radius: 3px;
+  white-space: nowrap;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+}
+
+/* ── SPAN PREVIEW ROW HIGHLIGHT ─────────────────────────────────────────── */
+.wire-row.span-preview {
+  background: rgba(244, 184, 96, 0.10);
+  outline: 1px solid rgba(244, 184, 96, 0.35);
+  outline-offset: -1px;
 }
 
 /* ── CONTROL DOTS — always visible, draggable ────────────────────────────── */

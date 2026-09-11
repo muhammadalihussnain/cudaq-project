@@ -36,6 +36,7 @@
 
       <!-- ── LEFT SIDEBAR ─────────────────────────────────────────────── -->
       <aside class="sidebar" id="sidebar">
+        <div class="sidebar-inner">
         <div class="panel-heading">
           <div><p class="eyebrow">01 / CONFIGURE</p><h2>Register</h2></div>
           <span class="step-number">A</span>
@@ -109,6 +110,8 @@
         </div>
 
         <p class="drag-hint">Or drag a gate directly onto any circuit slot.</p>
+        </div><!-- /sidebar-inner -->
+        <div class="sidebar-resizer" id="sidebarResizer" title="Drag to resize sidebar"></div>
       </aside>
 
       <!-- ── CIRCUIT PANEL ─────────────────────────────────────────────── -->
@@ -161,6 +164,8 @@
 
       <!-- ── RIGHT RESULTS PANEL ───────────────────────────────────────── -->
       <aside class="results-panel" id="resultsPanel">
+        <div class="results-resizer" id="resultsResizer" title="Drag to resize results panel"></div>
+        <div class="sidebar-inner">
         <div class="panel-heading">
           <div><p class="eyebrow">04 / MEASURE</p><h2>Output</h2></div>
           <span class="live-badge" id="liveBadge">READY</span>
@@ -210,7 +215,7 @@
 
         <!-- ── RESOURCE USAGE ──────────────────────────────────────────── -->
         <div id="resourceStats" class="resource-stats hidden" role="status" aria-live="polite"></div>
-
+        </div><!-- /sidebar-inner -->
       </aside>
 
     </section><!-- /workspace -->
