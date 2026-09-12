@@ -281,11 +281,50 @@ function showTooltip(anchor, gateName) {
 function hideTooltip() { clearTimeout(tooltipTimer); el.gateTooltip.classList.remove('visible'); }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// WELCOME / INSTRUCTIONS MODAL
+// ═════════════════════════════════════════════════════════════════════════════
+const welModal      = $('welcomeModal');
+const welClose      = $('welcomeModalClose');
+const welStart      = $('welcomeStart');
+const welDontShow   = $('welcomeDontShow');
+
+function openWelcome(forceTab) {
+  welModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  if (forceTab) switchWelTab(forceTab);
+}
+function closeWelcome() {
+  welModal.classList.add('hidden');
+  document.body.style.overflow = '';
+  if (welDontShow.checked) {
+    try { localStorage.setItem('cudaq-welcome-seen', '1'); } catch (_) {}
+  }
+}
+
+function switchWelTab(tabId) {
+  welModal.querySelectorAll('.wm-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === tabId));
+  welModal.querySelectorAll('.wm-panel').forEach(p =>
+    p.classList.toggle('active', p.id === `wm-${tabId}`));
+}
+welModal.querySelectorAll('.wm-tab').forEach(tab =>
+  tab.addEventListener('click', () => switchWelTab(tab.dataset.tab)));
+
+welClose.addEventListener('click', closeWelcome);
+welStart.addEventListener('click', closeWelcome);
+welModal.addEventListener('click', e => { if (e.target === welModal) closeWelcome(); });
+
+el.helpButton.addEventListener('click', openWelcome);
+
+try {
+  if (!localStorage.getItem('cudaq-welcome-seen')) openWelcome('overview');
+} catch (_) { openWelcome('overview'); }
+
+// ═════════════════════════════════════════════════════════════════════════════
 // HELP MODAL
 // ═════════════════════════════════════════════════════════════════════════════
 const openHelp  = () => el.helpModal.classList.remove('hidden');
 const closeHelp = () => el.helpModal.classList.add('hidden');
-el.helpButton.addEventListener('click', openHelp);
 el.helpModalClose.addEventListener('click', closeHelp);
 el.helpModal.addEventListener('click', e => { if (e.target === el.helpModal) closeHelp(); });
 
@@ -1550,8 +1589,8 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey||e.metaKey)&&(e.key==='='||e.key==='+'||e.key==='+'))           { e.preventDefault(); doZoomIn();    return; }
   if ((e.ctrlKey||e.metaKey)&&(e.key==='-'||e.key==='_'))                        { e.preventDefault(); doZoomOut();   return; }
   if ((e.ctrlKey||e.metaKey)&&e.key==='0')                                        { e.preventDefault(); doZoomReset(); return; }
-  if (e.key==='Escape')   { closeHelp(); activeQubit=null; clearStickyGate(); updateActiveQubitHint(); renderStateButtonHighlights(); return; }
-  if (e.key==='F1'||(!typing&&e.key==='?')) { e.preventDefault(); openHelp(); return; }
+  if (e.key==='Escape')   { closeWelcome(); closeHelp(); activeQubit=null; clearStickyGate(); updateActiveQubitHint(); renderStateButtonHighlights(); return; }
+  if (e.key==='F1'||(!typing&&e.key==='?')) { e.preventDefault(); openWelcome('tips'); return; }
   if (!typing&&e.key==='Enter') { e.preventDefault(); runCircuit(); return; }});
 
 // ── Clock ─────────────────────────────────────────────────────────────────────

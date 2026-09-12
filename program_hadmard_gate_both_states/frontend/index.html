@@ -267,6 +267,291 @@
   <!-- ── TOOLTIP ──────────────────────────────────────────────────────────── -->
   <div class="gate-tooltip" id="gateTooltip" aria-hidden="true"></div>
 
+  <!-- ── WELCOME / INSTRUCTIONS MODAL ─────────────────────────────────────── -->
+  <div class="modal-backdrop hidden" id="welcomeModal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+    <div class="modal welcome-modal">
+
+      <div class="modal-header">
+        <div class="welcome-brand">
+          <span class="brand-mark" style="font-size:22px">Q</span>
+          <div>
+            <p class="eyebrow" style="margin:0">CUDA-Q WORKBENCH</p>
+            <h2 id="welcomeTitle" style="margin:0;font-size:20px">Circuit Lab — User Guide</h2>
+          </div>
+        </div>
+        <button class="modal-close" id="welcomeModalClose" aria-label="Close">&times;</button>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="wm-tabs" role="tablist">
+        <button class="wm-tab active" data-tab="overview"  role="tab" aria-selected="true">Overview</button>
+        <button class="wm-tab"        data-tab="steps"     role="tab" aria-selected="false">Step-by-Step</button>
+        <button class="wm-tab"        data-tab="gates"     role="tab" aria-selected="false">Gate Reference</button>
+        <button class="wm-tab"        data-tab="tips"      role="tab" aria-selected="false">Tips &amp; Shortcuts</button>
+      </div>
+
+      <div class="modal-body wm-body">
+
+        <!-- ── TAB: OVERVIEW ─────────────────────────────────────────── -->
+        <div class="wm-panel active" id="wm-overview">
+          <p class="wm-intro">
+            Welcome to <strong>CUDA-Q Circuit Lab</strong> — a visual quantum circuit builder
+            that runs real simulations on your CPU or NVIDIA GPU using the
+            <strong>CUDA-Q</strong> quantum computing framework.
+          </p>
+
+          <div class="wm-cards">
+            <div class="wm-card">
+              <span class="wm-card-icon">①</span>
+              <div>
+                <strong>Configure</strong>
+                <p>Set the number of qubits (1–29) and measurement shots in the left sidebar.</p>
+              </div>
+            </div>
+            <div class="wm-card">
+              <span class="wm-card-icon">②</span>
+              <div>
+                <strong>Build a circuit</strong>
+                <p>Click a gate in the palette then click any qubit row to place it. Drag gates to move them. Click a placed gate to remove it.</p>
+              </div>
+            </div>
+            <div class="wm-card">
+              <span class="wm-card-icon">③</span>
+              <div>
+                <strong>Run</strong>
+                <p>Press <kbd>▶ Run circuit</kbd> or hit <kbd>Enter</kbd>. Results appear in the right panel with a bar chart and bit breakdown.</p>
+              </div>
+            </div>
+            <div class="wm-card">
+              <span class="wm-card-icon">④</span>
+              <div>
+                <strong>Analyse</strong>
+                <p>Read measurement counts, probabilities, the most likely output state, and live resource usage (CPU RAM / GPU VRAM).</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="wm-layout-diagram">
+            <div class="wm-layout-box wm-layout-left">
+              <strong>Left Sidebar</strong>
+              <ul>
+                <li>Qubit count &amp; shots</li>
+                <li>CPU / GPU target</li>
+                <li>Gate palette</li>
+                <li>Bulk apply</li>
+              </ul>
+            </div>
+            <div class="wm-layout-box wm-layout-center">
+              <strong>Circuit Panel (centre)</strong>
+              <ul>
+                <li>Initial state buttons</li>
+                <li>Circuit board grid</li>
+                <li>Zoom controls</li>
+                <li>Run button</li>
+              </ul>
+            </div>
+            <div class="wm-layout-box wm-layout-right">
+              <strong>Right Panel</strong>
+              <ul>
+                <li>Quantum state formula</li>
+                <li>Measurement bar chart</li>
+                <li>Bit breakdown table</li>
+                <li>Resource usage</li>
+              </ul>
+            </div>
+          </div>
+
+          <p class="wm-note">
+            💡 Both side panels can be <strong>resized</strong> by dragging their inner edge, or
+            <strong>collapsed</strong> using the <kbd>‹</kbd> / <kbd>›</kbd> tabs on the edges.
+          </p>
+        </div>
+
+        <!-- ── TAB: STEP-BY-STEP ─────────────────────────────────────── -->
+        <div class="wm-panel" id="wm-steps">
+
+          <h3 class="wm-section-title">Experiment 1 — Superposition with Hadamard</h3>
+          <ol class="wm-steps">
+            <li>Set <strong>Qubits</strong> to <code>1</code> using the + / − buttons.</li>
+            <li>Set <strong>Shots</strong> to <code>1,000</code>.</li>
+            <li>Make sure <strong>qpp-cpu</strong> is selected as the target.</li>
+            <li>Click the qubit row label <strong>q0</strong> in the circuit board — it highlights blue.</li>
+            <li>Click the <strong>H</strong> tile in the gate palette. An H gate appears on q0 column 0.</li>
+            <li>Press <kbd>Enter</kbd> or click <strong>▶ Run circuit</strong>.</li>
+            <li>The results panel shows ~50% <code>|0⟩</code> and ~50% <code>|1⟩</code> — superposition confirmed.</li>
+          </ol>
+
+          <h3 class="wm-section-title">Experiment 2 — Bell State (Entanglement)</h3>
+          <ol class="wm-steps">
+            <li>Set <strong>Qubits</strong> to <code>2</code>.</li>
+            <li>Click <strong>q0</strong>, then click <strong>H</strong> — places H on q0 at column 0.</li>
+            <li>Click <strong>q1</strong>, then click <strong>CNOT</strong> — places CNOT target on q1 at column 0, with a control dot on q0.</li>
+            <li>The control dot on q0 and the CNOT on q1 are connected by a vertical line — this is the entangling gate.</li>
+            <li>Press <kbd>Enter</kbd>. Expect ~50% <code>|00⟩</code> and ~50% <code>|11⟩</code> — a Bell state.</li>
+          </ol>
+
+          <h3 class="wm-section-title">Experiment 3 — Apply a Gate to Many Qubits at Once</h3>
+          <ol class="wm-steps">
+            <li>Set <strong>Qubits</strong> to <code>10</code> (or any number).</li>
+            <li>Scroll down the left sidebar to the <strong>BULK APPLY</strong> panel.</li>
+            <li>Select gate <strong>H</strong>, set <strong>From q</strong> = <code>0</code>, <strong>To q</strong> = <code>9</code>.</li>
+            <li>Choose <strong>Same column</strong> from the Column dropdown.</li>
+            <li>Click <strong>⚡ Apply to all</strong> — all 10 qubits get an H gate at column 0 instantly.</li>
+            <li>Press <kbd>Enter</kbd> to run. You will see a uniform distribution across all 2¹⁰ = 1024 basis states.</li>
+          </ol>
+
+          <h3 class="wm-section-title">Experiment 4 — Sticky Gate (Fast Placement)</h3>
+          <ol class="wm-steps">
+            <li>Click any gate in the palette — it glows cyan, meaning it is <strong>selected</strong>.</li>
+            <li>Now click any empty cell on the circuit board — the gate is placed there immediately.</li>
+            <li>Keep clicking different cells to place the same gate repeatedly without re-selecting.</li>
+            <li>Click the same palette tile again (or press <kbd>Esc</kbd>) to deselect it.</li>
+          </ol>
+
+          <h3 class="wm-section-title">Experiment 5 — Span a Gate Across Qubits</h3>
+          <ol class="wm-steps">
+            <li>Place a gate (e.g. <strong>H</strong>) on <strong>q0</strong>.</li>
+            <li>Hover over the gate — a small <strong>▼</strong> appears in its bottom-right corner.</li>
+            <li>Click and hold the <strong>▼</strong>, then drag downward across qubit rows.</li>
+            <li>A gold label shows the live span (e.g. <em>H → q0 – q7, 8 qubits</em>) and rows highlight.</li>
+            <li>Release the mouse — the gate is copied to every qubit in the covered range at the same column.</li>
+          </ol>
+
+          <h3 class="wm-section-title">Experiment 6 — CPU vs GPU Comparison</h3>
+          <ol class="wm-steps">
+            <li>Build any circuit (a Bell state works well).</li>
+            <li>Click <strong>▶▶ Compare targets</strong> in the left sidebar.</li>
+            <li>The app runs the same circuit on both <strong>qpp-cpu</strong> and <strong>nvidia</strong> and shows execution times side by side.</li>
+            <li>If no GPU is available, the nvidia result shows "Unavailable" — CPU result still works.</li>
+          </ol>
+        </div>
+
+        <!-- ── TAB: GATE REFERENCE ────────────────────────────────────── -->
+        <div class="wm-panel" id="wm-gates">
+          <p class="wm-intro">Every gate available in the palette. Single-qubit gates operate on one qubit. Multi-qubit gates require a control qubit (shown as a filled dot ●).</p>
+
+          <table class="wm-gate-table">
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>Name</th>
+                <th>Qubits</th>
+                <th>What it does</th>
+                <th>Quantum effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>I</code></td><td>Identity</td><td>1</td><td>Does nothing — placeholder for an empty time step.</td><td>|ψ⟩ → |ψ⟩</td></tr>
+              <tr><td><code>X</code></td><td>Pauli-X</td><td>1</td><td>Bit flip — swaps |0⟩ and |1⟩. The quantum NOT gate.</td><td>|0⟩→|1⟩, |1⟩→|0⟩</td></tr>
+              <tr><td><code>Y</code></td><td>Pauli-Y</td><td>1</td><td>Bit flip + phase flip combined.</td><td>|0⟩→i|1⟩, |1⟩→−i|0⟩</td></tr>
+              <tr><td><code>Z</code></td><td>Pauli-Z</td><td>1</td><td>Phase flip — leaves |0⟩ unchanged, flips sign of |1⟩.</td><td>|1⟩→−|1⟩</td></tr>
+              <tr><td><code>H</code></td><td>Hadamard</td><td>1</td><td>Creates an equal superposition from |0⟩ or |1⟩.</td><td>|0⟩→(|0⟩+|1⟩)/√2</td></tr>
+              <tr><td><code>S</code></td><td>Phase (S)</td><td>1</td><td>Applies a 90° (π/2) phase rotation to |1⟩.</td><td>|1⟩→i|1⟩</td></tr>
+              <tr><td><code>T</code></td><td>T gate</td><td>1</td><td>Applies a 45° (π/4) phase rotation to |1⟩.</td><td>|1⟩→e^(iπ/4)|1⟩</td></tr>
+              <tr><td><code>RX</code></td><td>Rotate X</td><td>1</td><td>Rotation around the X-axis of the Bloch sphere by π/2.</td><td>Parameterised rotation</td></tr>
+              <tr><td><code>RY</code></td><td>Rotate Y</td><td>1</td><td>Rotation around the Y-axis of the Bloch sphere by π/2.</td><td>Parameterised rotation</td></tr>
+              <tr><td><code>RZ</code></td><td>Rotate Z</td><td>1</td><td>Rotation around the Z-axis of the Bloch sphere by π/2.</td><td>Parameterised rotation</td></tr>
+              <tr class="wm-row-multi"><td><code>CNOT</code></td><td>Controlled-X</td><td>2</td><td>Flips target qubit only when control qubit is |1⟩. Used to create entanglement.</td><td>|11⟩→|10⟩</td></tr>
+              <tr class="wm-row-multi"><td><code>CZ</code></td><td>Controlled-Z</td><td>2</td><td>Applies Z to target qubit only when control qubit is |1⟩.</td><td>|11⟩→−|11⟩</td></tr>
+              <tr class="wm-row-multi"><td><code>SWAP</code></td><td>SWAP</td><td>2</td><td>Exchanges the quantum states of two qubits completely.</td><td>|ab⟩→|ba⟩</td></tr>
+              <tr class="wm-row-multi"><td><code>CCX</code></td><td>Toffoli</td><td>3</td><td>Flips target only when BOTH control qubits are |1⟩. Universal classical gate.</td><td>|111⟩→|110⟩</td></tr>
+              <tr><td><code>M</code></td><td>Measure</td><td>1</td><td>Visual annotation only — marks where you want a measurement. All qubits are always measured at the end anyway.</td><td>Visual only</td></tr>
+            </tbody>
+          </table>
+
+          <div class="wm-note" style="margin-top:14px">
+            <strong>Multi-qubit gates</strong> (CNOT, CZ, SWAP, CCX) show a filled amber circle <strong>●</strong> as the control qubit.
+            Drag the circle to a different qubit row to change which qubit acts as the control.
+            Double-click the gate itself to cycle through control qubit options automatically.
+          </div>
+        </div>
+
+        <!-- ── TAB: TIPS & SHORTCUTS ──────────────────────────────────── -->
+        <div class="wm-panel" id="wm-tips">
+
+          <h3 class="wm-section-title">Keyboard Shortcuts</h3>
+          <table class="shortcut-table wm-shortcut-table">
+            <tbody>
+              <tr><td><kbd>Enter</kbd></td><td>Run the circuit</td></tr>
+              <tr><td><kbd>Ctrl+Z</kbd></td><td>Undo last action</td></tr>
+              <tr><td><kbd>Ctrl+Y</kbd></td><td>Redo</td></tr>
+              <tr><td><kbd>Ctrl+L</kbd></td><td>Clear the circuit board</td></tr>
+              <tr><td><kbd>Ctrl+D</kbd></td><td>Toggle light / dark theme</td></tr>
+              <tr><td><kbd>Ctrl+=</kbd></td><td>Zoom in</td></tr>
+              <tr><td><kbd>Ctrl+−</kbd></td><td>Zoom out</td></tr>
+              <tr><td><kbd>Ctrl+0</kbd></td><td>Reset zoom to 150%</td></tr>
+              <tr><td><kbd>Ctrl+Scroll</kbd></td><td>Zoom with mouse wheel over the circuit</td></tr>
+              <tr><td><kbd>Esc</kbd></td><td>Deselect qubit / deselect sticky gate / close modal</td></tr>
+              <tr><td><kbd>F1</kbd> or <kbd>?</kbd></td><td>Open this guide</td></tr>
+            </tbody>
+          </table>
+
+          <h3 class="wm-section-title">Mouse Actions</h3>
+          <table class="shortcut-table wm-shortcut-table">
+            <tbody>
+              <tr><td>Click qubit label (q0, q1…)</td><td>Select that qubit row</td></tr>
+              <tr><td>Click gate in palette</td><td>Select it (sticky) — stays selected for repeated placement</td></tr>
+              <tr><td>Click empty circuit cell</td><td>Place sticky gate at that exact column and qubit</td></tr>
+              <tr><td>Click placed gate</td><td>Remove it (when no sticky gate active)</td></tr>
+              <tr><td>Drag gate from palette</td><td>Drop onto any circuit cell directly</td></tr>
+              <tr><td>Drag placed gate</td><td>Move it to a different cell</td></tr>
+              <tr><td>Double-click placed gate</td><td>Cycle control qubit (CNOT / CZ / SWAP / CCX)</td></tr>
+              <tr><td>Click control dot ●</td><td>Cycle that control to the next free qubit</td></tr>
+              <tr><td>Drag control dot ●</td><td>Move control to any qubit in the same column</td></tr>
+              <tr><td>Hover gate → drag ▼ handle</td><td>Span gate across multiple qubits at same column</td></tr>
+              <tr><td>Drag sidebar edge</td><td>Resize left or right panel</td></tr>
+            </tbody>
+          </table>
+
+          <h3 class="wm-section-title">Good to Know</h3>
+          <div class="wm-tip-grid">
+            <div class="wm-tip">
+              <span class="wm-tip-icon">🎯</span>
+              <p><strong>Initial states</strong> — each qubit starts in |0⟩ by default. Click the state button (e.g. <em>q0 |0⟩</em>) to cycle through |0⟩, |1⟩, |+⟩, |−⟩.</p>
+            </div>
+            <div class="wm-tip">
+              <span class="wm-tip-icon">📊</span>
+              <p><strong>Shots</strong> — more shots give smoother probability estimates. Use 1,000 for quick tests, 10,000 for precise distributions.</p>
+            </div>
+            <div class="wm-tip">
+              <span class="wm-tip-icon">⚡</span>
+              <p><strong>GPU target</strong> — select <em>nvidia</em> for hardware-accelerated simulation. Requires an NVIDIA GPU with matching CUDA drivers. Falls back to a local preview if unavailable.</p>
+            </div>
+            <div class="wm-tip">
+              <span class="wm-tip-icon">🔢</span>
+              <p><strong>Bit ordering</strong> — results follow q0-left convention: the leftmost bit is q0, the rightmost is q(n−1). E.g. <code>|01⟩</code> means q0=0, q1=1.</p>
+            </div>
+            <div class="wm-tip">
+              <span class="wm-tip-icon">↩</span>
+              <p><strong>Undo everything</strong> — every gate placement, removal, state change, and bulk apply is undoable with <kbd>Ctrl+Z</kbd>. Up to 60 steps are kept.</p>
+            </div>
+            <div class="wm-tip">
+              <span class="wm-tip-icon">📐</span>
+              <p><strong>Circuit depth</strong> — shown in the circuit header (e.g. <em>3 qubits / 2 depth</em>). Depth is the number of sequential gate layers your circuit uses.</p>
+            </div>
+            <div class="wm-tip">
+              <span class="wm-tip-icon">🖥</span>
+              <p><strong>Resource usage</strong> — after each run the right panel shows CPU RAM and GPU VRAM usage so you can monitor how your circuit scales.</p>
+            </div>
+            <div class="wm-tip">
+              <span class="wm-tip-icon">🔍</span>
+              <p><strong>State formula</strong> — after running, the right panel shows the exact quantum state vector equation (disabled above 20 qubits to avoid browser slowdown).</p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /wm-body -->
+
+      <div class="wm-footer">
+        <label class="wm-dont-show">
+          <input type="checkbox" id="welcomeDontShow"> Don't show this again on startup
+        </label>
+        <button class="run-button" id="welcomeStart" style="min-width:140px">Start experimenting →</button>
+      </div>
+
+    </div><!-- /modal -->
+  </div><!-- /welcomeModal -->
+
   <script src="circuit-lab-final.js"></script>
 </body>
 </html>
